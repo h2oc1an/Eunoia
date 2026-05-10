@@ -18,8 +18,15 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var bookmarks: [VideoBookmark] = []
     @Published var showingBookmarkSheet: Bool = false
     @Published var showingAddBookmark: Bool = false
+    @Published var showTranscriptionSheet: Bool = false
+    @Published var isTranscribing: Bool = false
 
     private var subtitles: [SubtitleEntry] = []
+
+    /// 当前视频是否有字幕
+    var hasSubtitles: Bool {
+        video.subtitlePath != nil
+    }
     private var timeObserver: Any?
     private var didAddObserver = false
     private let srtParser = SRTSubtitleParser()
@@ -187,6 +194,63 @@ class VideoPlayerViewModel: ObservableObject {
 
         // Save playback position
         videoRepository.saveLastPlaybackPosition(for: video.id, position: currentTime)
+    }
+
+    // MARK: - Transcription
+
+    /// 为当前视频启动转录
+    func startTranscription(mode: SubtitleMode) {
+        guard !isTranscribing else { return }
+        isTranscribing = true
+
+        TranscriptionTaskManager.shared.startTranscription(
+            videoTitle: video.title,
+            videoPath: video.localPath,
+            subtitleMode: mode
+        ) { [weak self] result in
+            Task { @MainActor in
+                guard let self = self else { return }
+                self.isTranscribing = false
+
+                switch result {
+                case .success(let transcriptionResult):
+                    // 复制 SRT 到持久化目录并更新 Video
+                    let subtitleDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        .appendingPathComponent("Subtitles", isDirectory: true)
+                    try? FileManager.default.createDirectory(at: subtitleDir, withIntermediateDirectories: true)
+
+                    let destURL = subtitleDir.appendingPathComponent("\(self.video.id.uuidString).srt")
+                    try? FileManager.default.removeItem(at: destURL)
+                    if let _ = try? FileManager.default.copyItem(atPath: transcriptionResult.subtitlePath, toPath: destURL.path) {
+                        // 更新数据库中的 video.subtitlePath
+                        var updatedVideo = self.video
+                        updatedVideo.subtitlePath = destURL.path
+                        try? self.videoRepository.update(updatedVideo)
+
+                        // 重新加载字幕
+                        self.reloadSubtitles(from: destURL.path)
+                    }
+                case .failure(let error):
+                    print("[VideoPlayer] 转录失败: \(error)")
+                }
+            }
+        }
+    }
+
+    /// 从指定路径重新加载字幕
+    func reloadSubtitles(from subtitlePath: String) {
+        let url = URL(fileURLWithPath: subtitlePath)
+        let fileExtension = url.pathExtension.lowercased()
+
+        do {
+            if fileExtension == "srt" {
+                subtitles = try srtParser.parse(fileURL: url)
+            } else if fileExtension == "ass" || fileExtension == "ssa" {
+                subtitles = try assParser.parse(fileURL: url)
+            }
+        } catch {
+            print("加载字幕失败: \(error)")
+        }
     }
 
     // MARK: - Bookmarks

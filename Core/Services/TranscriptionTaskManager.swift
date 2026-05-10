@@ -76,6 +76,13 @@ struct TranscriptionTask: Identifiable, Codable {
     }
 }
 
+/// 转录结果（区别于 WhisperKit 的 SubtitleTranscriptionResult）
+struct SubtitleTranscriptionResult {
+    let subtitlePath: String
+    let entries: [SubtitleEntry]
+    let detectedLanguage: String?
+}
+
 /// 转录任务管理器 (单例)
 class TranscriptionTaskManager: ObservableObject {
     static let shared = TranscriptionTaskManager()
@@ -85,6 +92,9 @@ class TranscriptionTaskManager: ObservableObject {
     private var runningTask: Task<Void, Never>?
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     private var notificationCenter = UNUserNotificationCenter.current()
+
+    /// 每个任务的完成回调
+    private var completionHandlers: [UUID: (Result<SubtitleTranscriptionResult, Error>) -> Void] = [:]
 
     private init() {
         requestNotificationPermission()
@@ -119,8 +129,17 @@ class TranscriptionTaskManager: ObservableObject {
     // MARK: - Task Management
 
     /// 添加并开始转录任务
-    func startTranscription(videoTitle: String, videoPath: String, subtitleMode: SubtitleMode = .original) -> UUID {
+    @discardableResult
+    func startTranscription(
+        videoTitle: String,
+        videoPath: String,
+        subtitleMode: SubtitleMode = .bilingual,
+        completion: ((Result<SubtitleTranscriptionResult, Error>) -> Void)? = nil
+    ) -> UUID {
         let taskID = addTask(videoTitle: videoTitle, videoPath: videoPath, subtitleMode: subtitleMode)
+        if let completion = completion {
+            completionHandlers[taskID] = completion
+        }
         executeTask(taskID)
         return taskID
     }
@@ -296,6 +315,20 @@ class TranscriptionTaskManager: ObservableObject {
             taskID: taskID
         )
 
+        // 调用完成回调
+        if let subtitlePath = subtitlePath, let handler = completionHandlers.removeValue(forKey: taskID) {
+            let detectedLanguage: String? = {
+                if let text = entries.first?.text { return detectLanguage(of: text) }
+                return nil
+            }()
+            let result = SubtitleTranscriptionResult(
+                subtitlePath: subtitlePath,
+                entries: entries,
+                detectedLanguage: detectedLanguage
+            )
+            handler(.success(result))
+        }
+
         endBackgroundTask()
     }
 
@@ -316,6 +349,11 @@ class TranscriptionTaskManager: ObservableObject {
             taskID: taskID
         )
 
+        if let handler = completionHandlers.removeValue(forKey: taskID) {
+            handler(.failure(NSError(domain: "TranscriptionTaskManager", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: error])))
+        }
+
         endBackgroundTask()
     }
 
@@ -331,6 +369,11 @@ class TranscriptionTaskManager: ObservableObject {
         tasks[index].statusMessage = "已取消"
 
         saveTasks()
+
+        if let handler = completionHandlers.removeValue(forKey: taskID) {
+            handler(.failure(CancellationError()))
+        }
+
         endBackgroundTask()
     }
 
@@ -403,4 +446,14 @@ class TranscriptionTaskManager: ObservableObject {
             print("加载任务失败: \(error)")
         }
     }
+}
+
+// MARK: - Language Detection Helper
+private func detectLanguage(of text: String) -> String? {
+    let chinesePattern = try? NSRegularExpression(pattern: "[\\u4e00-\\u9fff]", options: [])
+    let range = NSRange(location: 0, length: text.utf16.count)
+    if let match = chinesePattern?.firstMatch(in: text, options: [], range: range) {
+        return "zh"
+    }
+    return "en"
 }

@@ -11,6 +11,7 @@ class DatabaseManager {
     let vocabularyEntries = Table("vocabulary_entries")
     let reviewRecords = Table("review_records")
     let videoBookmarks = Table("video_bookmarks")
+    let downloadTasks = Table("download_tasks")
 
     // Video columns
     let videoId = Expression<String>("id")
@@ -23,6 +24,9 @@ class DatabaseManager {
     let videoLastPlayedAt = Expression<String?>("last_played_at")
     let videoLastPlaybackPosition = Expression<Double>("last_playback_position")
     let videoPlaybackRate = Expression<Double>("playback_rate")
+    let videoDownloadTaskId = Expression<String?>("download_task_id")
+    let videoSourceURL = Expression<String?>("source_url")
+    let videoFileSize = Expression<Int64?>("file_size")
 
     // VocabularyEntry columns
     let vocabId = Expression<String>("id")
@@ -54,6 +58,23 @@ class DatabaseManager {
     let bookmarkNote = Expression<String?>("note")
     let bookmarkCreatedAt = Expression<String>("created_at")
 
+    // DownloadTask columns
+    let downloadId = Expression<String>("id")
+    let downloadSourceType = Expression<String>("source_type")
+    let downloadSourceURL = Expression<String>("source_url")
+    let downloadTitle = Expression<String>("title")
+    let downloadStatus = Expression<String>("status")
+    let downloadProgress = Expression<Double>("progress")
+    let downloadLocalPath = Expression<String?>("local_path")
+    let downloadTemporaryPath = Expression<String?>("temporary_path")
+    let downloadTotalBytes = Expression<Int64?>("total_bytes")
+    let downloadedBytes = Expression<Int64?>("downloaded_bytes")
+    let downloadErrorMessage = Expression<String?>("error_message")
+    let downloadCreatedAt = Expression<String>("created_at")
+    let downloadCompletedAt = Expression<String?>("completed_at")
+    let downloadMetadataJSON = Expression<String?>("metadata_json")
+    let downloadFormatJSON = Expression<String?>("format_json")
+
     private init() {
         do {
             let path = try FileManager.default
@@ -83,6 +104,9 @@ class DatabaseManager {
                 t.column(videoLastPlayedAt)
                 t.column(videoLastPlaybackPosition, defaultValue: 0)
                 t.column(videoPlaybackRate, defaultValue: 1.0)
+                t.column(videoDownloadTaskId)
+                t.column(videoSourceURL)
+                t.column(videoFileSize)
             })
 
             // Create vocabulary_entries table
@@ -121,8 +145,55 @@ class DatabaseManager {
                 t.column(bookmarkCreatedAt)
             })
 
+            // Create/migrate download_tasks table
+            migrateDownloadTasksTable(db)
+
         } catch {
             print("Table creation failed: \(error)")
+        }
+    }
+
+    // MARK: - Download Tasks Table Migration
+    private func migrateDownloadTasksTable(_ db: Connection) {
+        // 检查旧表是否存在（通过查询旧列名 torrent_info）
+        let hasOldSchema: Bool
+        do {
+            let columns = try db.prepare("PRAGMA table_info(download_tasks)")
+            let columnNames = Set(columns.compactMap { row -> String? in
+                if let name = row[1] as? String { return name }
+                return nil
+            })
+            hasOldSchema = columnNames.contains("torrent_info") || columnNames.contains("source_content")
+        } catch {
+            hasOldSchema = false
+        }
+
+        if hasOldSchema {
+            // 旧表存在，删掉重建（下载功能原本就不可用，数据可丢弃）
+            try? db.run(downloadTasks.drop(ifExists: true))
+        }
+
+        // 创建新表
+        do {
+            try db.run(downloadTasks.create(ifNotExists: true) { t in
+                t.column(downloadId, primaryKey: true)
+                t.column(downloadSourceType)
+                t.column(downloadSourceURL)
+                t.column(downloadTitle)
+                t.column(downloadStatus)
+                t.column(downloadProgress, defaultValue: 0)
+                t.column(downloadLocalPath)
+                t.column(downloadTemporaryPath)
+                t.column(downloadTotalBytes)
+                t.column(downloadedBytes)
+                t.column(downloadErrorMessage)
+                t.column(downloadCreatedAt)
+                t.column(downloadCompletedAt)
+                t.column(downloadMetadataJSON)
+                t.column(downloadFormatJSON)
+            })
+        } catch {
+            print("download_tasks table creation failed: \(error)")
         }
     }
 

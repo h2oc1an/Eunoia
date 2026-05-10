@@ -7,6 +7,7 @@ struct VideoPlayerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hasInitialized = false
     @State private var showSubtitleShare = false
+    @State private var showSubtitlePicker = false
 
     init(video: Video) {
         self.video = video
@@ -39,6 +40,11 @@ struct VideoPlayerView: View {
         }
         .sheet(isPresented: $viewModel.showingAddBookmark) {
             AddBookmarkSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showSubtitlePicker) {
+            SubtitleModePickerView { mode in
+                viewModel.startTranscription(mode: mode)
+            }
         }
         .onAppear {
             if !hasInitialized {
@@ -94,8 +100,30 @@ struct VideoPlayerView: View {
                         .background(Color.white.opacity(0.2))
                         .cornerRadius(8)
                 }
-                .padding(.trailing, 16)
-                .padding(.top, 8)
+                .padding(.trailing, 4)
+
+                // 字幕生成按钮（无字幕时显示）
+                if !viewModel.hasSubtitles {
+                    if viewModel.isTranscribing {
+                        ProgressView()
+                            .tint(.white)
+                            .padding(.trailing, 16)
+                            .padding(.top, 8)
+                    } else {
+                        Button(action: { showSubtitlePicker = true }) {
+                            Image(systemName: "captions.bubble")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(8)
+                        }
+                        .padding(.trailing, 16)
+                        .padding(.top, 8)
+                    }
+                } else {
+                    Spacer().frame(width: 8)
+                }
             }
 
             VideoPlayer(player: viewModel.player)

@@ -72,28 +72,52 @@ class ThumbnailService {
             return nil
         }
 
+        // 验证文件存在
+        guard FileManager.default.fileExists(atPath: videoPath) else {
+            print("Thumbnail: 文件不存在 \(videoPath)")
+            return nil
+        }
+
         let asset = AVAsset(url: videoURL)
+
+        // 检查 asset 是否可读
+        guard asset.isReadable else {
+            print("Thumbnail: AVAsset 无法读取 \(videoPath)")
+            return nil
+        }
+
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
         imageGenerator.maximumSize = CGSize(width: 640, height: 360)
+        // 允许生成失败时使用近似帧
+        imageGenerator.requestedTimeToleranceBefore = CMTime(seconds: 1, preferredTimescale: 600)
+        imageGenerator.requestedTimeToleranceAfter = CMTime(seconds: 1, preferredTimescale: 600)
 
-        let time = CMTime(seconds: 1, preferredTimescale: 600)
+        // 尝试多个时间点：1秒、0秒、视频中点
+        let tryTimes: [CMTime] = [
+            CMTime(seconds: 1, preferredTimescale: 600),
+            CMTime(seconds: 0, preferredTimescale: 600),
+            CMTime(seconds: 5, preferredTimescale: 600)
+        ]
 
-        do {
-            let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
-            let uiImage = UIImage(cgImage: cgImage)
+        for time in tryTimes {
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
 
-            // 存入内存缓存
-            memoryCache.setObject(uiImage, forKey: cacheKey)
+                memoryCache.setObject(uiImage, forKey: cacheKey)
 
-            if let directory = saveToDirectory {
-                return saveImage(uiImage, to: directory)
+                if let directory = saveToDirectory {
+                    return saveImage(uiImage, to: directory)
+                }
+                return nil
+            } catch {
+                continue
             }
-            return nil
-        } catch {
-            print("Thumbnail generation failed: \(error)")
-            return nil
         }
+
+        print("Thumbnail: 所有时间点都生成失败 \(videoPath)")
+        return nil
     }
 
     /// 保存图片到指定目录

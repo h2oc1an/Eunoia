@@ -10,6 +10,11 @@ struct Video: Identifiable, Codable {
     var createdAt: Date
     var lastPlayedAt: Date?
 
+    // Download-related fields
+    var downloadTaskId: UUID?
+    var sourceURL: String?  // Original URL or magnet link
+    var fileSize: Int64?
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -18,7 +23,10 @@ struct Video: Identifiable, Codable {
         duration: TimeInterval = 0,
         subtitlePath: String? = nil,
         createdAt: Date = Date(),
-        lastPlayedAt: Date? = nil
+        lastPlayedAt: Date? = nil,
+        downloadTaskId: UUID? = nil,
+        sourceURL: String? = nil,
+        fileSize: Int64? = nil
     ) {
         self.id = id
         self.title = title
@@ -28,5 +36,8 @@ struct Video: Identifiable, Codable {
         self.subtitlePath = subtitlePath
         self.createdAt = createdAt
         self.lastPlayedAt = lastPlayedAt
+        self.downloadTaskId = downloadTaskId
+        self.sourceURL = sourceURL
+        self.fileSize = fileSize
     }
 }

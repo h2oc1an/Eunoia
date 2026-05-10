@@ -6,6 +6,11 @@ struct HomeView: View {
     @State private var selectedVideo: Video?
     @State private var isLoading: Bool = true
     @State private var showUploadSheet: Bool = false
+    @State private var showDownloadSheet: Bool = false
+    @State private var showSubtitlePicker: Bool = false
+    @State private var subtitleTargetVideo: Video?
+    @State private var showTranscribeAlert: Bool = false
+    @State private var transcribeAlertMessage: String = ""
 
     var body: some View {
         NavigationStack {
@@ -39,6 +44,14 @@ struct HomeView: View {
                                                     selectedVideo = video
                                                 }
                                                 .contextMenu {
+                                                    if video.subtitlePath == nil {
+                                                        Button {
+                                                            subtitleTargetVideo = video
+                                                            showSubtitlePicker = true
+                                                        } label: {
+                                                            Label("生成字幕", systemImage: "captions.bubble")
+                                                        }
+                                                    }
                                                     Button(role: .destructive) {
                                                         deleteVideo(video)
                                                     } label: {
@@ -65,7 +78,14 @@ struct HomeView: View {
             .navigationTitle("讲英格力士")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showUploadSheet = true }) {
+                    Menu {
+                        Button(action: { showUploadSheet = true }) {
+                            Label("上传本地视频", systemImage: "doc.fill")
+                        }
+                        Button(action: { showDownloadSheet = true }) {
+                            Label("下载视频", systemImage: "arrow.down.circle.fill")
+                        }
+                    } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
                     }
@@ -83,6 +103,16 @@ struct HomeView: View {
             .sheet(isPresented: $showUploadSheet) {
                 UploadView()
             }
+            .sheet(isPresented: $showDownloadSheet) {
+                DownloadView()
+            }
+            .sheet(isPresented: $showSubtitlePicker) {
+                SubtitleModePickerView { mode in
+                    if let video = subtitleTargetVideo {
+                        startTranscriptionForHomeVideo(video, mode: mode)
+                    }
+                }
+            }
             .onChange(of: showUploadSheet) { isPresented in
                 if !isPresented {
                     // 上传完成后刷新数据
@@ -90,6 +120,19 @@ struct HomeView: View {
                         await loadData()
                     }
                 }
+            }
+            .onChange(of: showDownloadSheet) { isPresented in
+                if !isPresented {
+                    // 下载完成后刷新数据
+                    Task { @MainActor in
+                        await loadData()
+                    }
+                }
+            }
+            .alert("转录任务", isPresented: $showTranscribeAlert) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(transcribeAlertMessage)
             }
         }
     }
@@ -126,6 +169,34 @@ struct HomeView: View {
         } catch {
             print("Failed to delete video: \(error)")
         }
+    }
+
+    /// 从 HomeView 长按菜单触发的转录
+    private func startTranscriptionForHomeVideo(_ video: Video, mode: SubtitleMode) {
+        TranscriptionTaskManager.shared.startTranscription(
+            videoTitle: video.title,
+            videoPath: video.localPath,
+            subtitleMode: mode
+        ) { result in
+            switch result {
+            case .success(let transcriptionResult):
+                let subtitleDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("Subtitles", isDirectory: true)
+                try? FileManager.default.createDirectory(at: subtitleDir, withIntermediateDirectories: true)
+
+                let destURL = subtitleDir.appendingPathComponent("\(video.id.uuidString).srt")
+                try? FileManager.default.removeItem(at: destURL)
+                if let _ = try? FileManager.default.copyItem(atPath: transcriptionResult.subtitlePath, toPath: destURL.path) {
+                    var updatedVideo = video
+                    updatedVideo.subtitlePath = destURL.path
+                    try? VideoRepository.shared.update(updatedVideo)
+                }
+            case .failure:
+                break
+            }
+        }
+        transcribeAlertMessage = "已创建转录任务，可前往「转录」页面查看进度"
+        showTranscribeAlert = true
     }
 }
 

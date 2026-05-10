@@ -13,6 +13,9 @@ packages:
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit
     from: "0.5.0"
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit
+    from: "0.4.0"
 
 targets:
   SpeakingEnglish:
@@ -44,3 +47,4 @@ targets:
     dependencies:
       - package: SQLite
       - package: WhisperKit
+      - package: YouTubeKit

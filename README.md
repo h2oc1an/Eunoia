@@ -8,6 +8,14 @@
 
 ## 功能特性
 
+### 视频下载
+- 支持 **YouTube** 视频下载（自动解析直链）
+- 支持 **Bilibili** 视频下载（原生 API + WBI 签名）
+- 支持直接视频 URL 下载（MP4/MKV/MOV 等）
+- URLSession 后台下载，支持暂停/恢复
+- 下载完成后可选生成字幕（WhisperKit 转录 + 翻译）
+- 画质/格式选择（多格式时）
+
 ### 视频学习
 - 支持本地 MP4 视频播放
 - 支持 SRT/ASS 格式外挂字幕
@@ -17,6 +25,7 @@
 - **记忆播放位置**：自动跳转到上次观看进度
 - **书签/笔记**：在任意时间点添加书签和备注
 - **手势控制**：左右滑动调节进度，双击暂停/播放
+- **播放器内生成字幕**：无字幕视频可一键转录
 
 ### 视频语音转录（多语言识别->字幕文件）
 - 使用 WhisperKit 本地 AI 模型转录
@@ -65,35 +74,42 @@ SpeakingEnglish/
 │   │   ├── VideoBookmark.swift
 │   │   └── ReviewRecord.swift
 │   ├── Services/          # 核心服务
-│   │   ├── TranscriptionService.swift    # WhisperKit 转录
-│   │   ├── TranscriptionTaskManager.swift # 转录任务管理
-│   │   ├── TranslationService.swift      # Bing 翻译
-│   │   ├── TranslationTaskManager.swift  # 翻译任务管理
-│   │   ├── SubtitleParser/              # 字幕解析
-│   │   ├── SM2Algorithm.swift            # 间隔重复算法
+│   │   ├── DownloadService.swift           # HTTP 下载服务
+│   │   ├── VideoExtractor.swift            # 视频提取器协议
+│   │   ├── YouTubeExtractor.swift          # YouTube 提取器
+│   │   ├── BilibiliExtractor.swift         # Bilibili 提取器
+│   │   ├── TranscriptionService.swift      # WhisperKit 转录
+│   │   ├── TranscriptionTaskManager.swift   # 转录任务管理
+│   │   ├── TranslationService.swift        # Bing 翻译
+│   │   ├── TranslationTaskManager.swift    # 翻译任务管理
+│   │   ├── SubtitleParser/                # 字幕解析
+│   │   ├── SM2Algorithm.swift              # 间隔重复算法
 │   │   ├── VocabularyService.swift
-│   │   ├── ThumbnailService.swift         # 缩略图生成
-│   │   ├── ImageCacheService.swift       # 图片缓存
+│   │   ├── ThumbnailService.swift           # 缩略图生成
+│   │   ├── ImageCacheService.swift         # 图片缓存
 │   │   └── WordExtractionService.swift
 │   └── Persistence/       # 数据持久化
 │       ├── DatabaseManager.swift
 │       ├── VideoRepository.swift
+│       ├── DownloadTaskRepository.swift
 │       ├── VocabularyRepository.swift
 │       └── VideoBookmarkRepository.swift
 ├── Features/
 │   ├── Home/              # 首页视频列表
 │   ├── VideoPlayer/       # 视频播放 + 字幕叠加
 │   │   └── Subviews/      # 播放器子组件
+│   ├── Download/          # 视频下载页面
 │   ├── Transcription/     # 转录页面 + 任务列表
 │   ├── Translation/       # 翻译页面 + 任务列表
 │   ├── Vocabulary/        # 生词本列表/详情
 │   └── Settings/          # 设置与复习整合页面
 ├── Shared/                # 共享组件
+│   ├── SubtitleModePickerView.swift  # 字幕模式选择器
 │   ├── DocumentPicker.swift
 │   ├── SubtitleListView.swift
 │   ├── BilingualTextParser.swift
-│   ├── CachedAsyncImage.swift     # 带缓存的异步图片
-│   ├── TimeFormatter.swift        # 时间格式化工具
+│   ├── CachedAsyncImage.swift         # 带缓存的异步图片
+│   ├── TimeFormatter.swift           # 时间格式化工具
 │   ├── ToastView.swift
 │   └── Extensions/
 ├── Resources/
@@ -111,6 +127,7 @@ SpeakingEnglish/
 |-----|------|
 | UI 框架 | SwiftUI |
 | 视频播放 | AVPlayer + AVKit |
+| 视频下载 | URLSession + YouTubeKit |
 | 语音识别 | WhisperKit (openai_whisper-tiny) |
 | 字幕翻译 | Microsoft Translator API |
 | 数据持久化 | SQLite.swift |
@@ -163,6 +180,14 @@ open SpeakingEnglish.xcodeproj
 ```
 
 ## 使用说明
+
+### 下载视频
+
+1. 首页点击 **+** →「下载视频」
+2. 粘贴视频链接（支持 YouTube、Bilibili、直链）
+3. 点击「解析并下载」，多格式时可选择画质
+4. 下载完成后点击「导入」将视频添加到首页
+5. 导入后可点击「转录」生成字幕（后台执行，可前往转录页面查看进度）
 
 ### 转录视频
 
