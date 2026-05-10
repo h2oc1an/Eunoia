@@ -97,18 +97,7 @@ class TranscriptionTaskManager: ObservableObject {
     private var completionHandlers: [UUID: (Result<SubtitleTranscriptionResult, Error>) -> Void] = [:]
 
     private init() {
-        requestNotificationPermission()
         loadTasks()
-    }
-
-    // MARK: - Notification
-
-    func requestNotificationPermission() {
-        notificationCenter.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                print("通知权限已授予")
-            }
-        }
     }
 
     private func sendNotification(title: String, body: String, taskID: UUID? = nil) {

@@ -5,6 +5,7 @@ struct UploadView: View {
     @StateObject private var viewModel = UploadViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showVideoPicker = false
+    @State private var showPhotoPicker = false
     @State private var showSubtitlePicker = false
 
     var body: some View {
@@ -12,24 +13,35 @@ struct UploadView: View {
             Form {
                 // 视频选择
                 Section {
-                    Button(action: { showVideoPicker = true }) {
+                    // 已选视频状态
+                    if let url = viewModel.selectedVideoURL {
                         HStack {
                             Image(systemName: "film")
-                                .foregroundColor(.blue)
-                            Text(viewModel.selectedVideoURL?.lastPathComponent ?? "选择视频文件")
-                            Spacer()
-                            if viewModel.selectedVideoURL != nil {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                                .foregroundColor(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(url.lastPathComponent)
+                                    .font(.subheadline)
+                                Text("已选择")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
                         }
-                    }
 
-                    if viewModel.selectedVideoURL != nil {
                         Button(role: .destructive, action: {
                             viewModel.selectedVideoURL = nil
                         }) {
                             Label("移除视频", systemImage: "trash")
+                        }
+                    } else {
+                        Button(action: { showPhotoPicker = true }) {
+                            Label("从相册选择", systemImage: "photo.on.rectangle")
+                        }
+
+                        Button(action: { showVideoPicker = true }) {
+                            Label("从文件选择", systemImage: "folder")
                         }
                     }
                 } header: {
@@ -150,6 +162,12 @@ struct UploadView: View {
                         }
                     }
                     .disabled(!viewModel.canUpload)
+                }
+            }
+            .sheet(isPresented: $showPhotoPicker) {
+                PhotoLibraryPicker { url in
+                    viewModel.selectVideo(url: url)
+                    showPhotoPicker = false
                 }
             }
             .sheet(isPresented: $showVideoPicker) {

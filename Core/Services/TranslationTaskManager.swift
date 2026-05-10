@@ -67,18 +67,7 @@ class TranslationTaskManager: ObservableObject {
     private let transcriptionService = TranscriptionService.shared
 
     private init() {
-        requestNotificationPermission()
         loadTasks()
-    }
-
-    // MARK: - Notification
-
-    func requestNotificationPermission() {
-        notificationCenter.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                print("通知权限已授予")
-            }
-        }
     }
 
     private func sendNotification(title: String, body: String, taskID: UUID? = nil) {
