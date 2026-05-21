@@ -8,198 +8,299 @@ struct DownloadView: View {
     @State private var pendingTranscribeTask: DownloadTask?
 
     var body: some View {
-        NavigationStack {
-            List {
-                // URL 输入区
-                Section {
-                    TextField("视频链接 (URL)", text: $viewModel.inputURL)
-                        .textContentType(.URL)
-                        .keyboardType(.URL)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 标题栏
+                HStack {
+                    Text("下载视频")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
 
-                    TextField("标题（可选，用于显示）", text: $viewModel.videoTitle)
+                    Spacer()
 
-                    Button(action: {
-                        Task { await viewModel.parseURL() }
-                    }) {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.blue)
-                            Text("解析并下载")
-                            Spacer()
-                            if viewModel.isParsing {
-                                ProgressView()
-                            }
-                        }
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(Color(hex: "C7C7CC"))
                     }
-                    .disabled(!viewModel.canStartDownload || viewModel.isParsing)
-                } header: {
-                    Text("视频链接")
-                } footer: {
-                    Text("支持直接视频链接（mp4、mkv 等）、YouTube、Bilibili 等平台链接")
+                    .buttonStyle(.plain)
                 }
 
-                // 解析结果预览
+                // 链接卡片
+                linkCard
+
+                // 解析结果
                 if let result = viewModel.extractionResult {
-                    Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(result.platform.uppercased())
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(platformColor(result.platform))
-                                    .cornerRadius(4)
-
-                                if let duration = result.duration {
-                                    let minutes = Int(duration) / 60
-                                    let seconds = Int(duration) % 60
-                                    Text(String(format: "%d:%02d", minutes, seconds))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            Text(result.title)
-                                .font(.headline)
-                                .lineLimit(2)
-
-                            if let uploader = result.uploader {
-                                Text("up: \(uploader)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if !result.formats.isEmpty {
-                                Text("\(result.formats.count) 个可用格式")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
-
-                            if viewModel.hasFormats {
-                                Button("选择画质") {
-                                    showFormatSheet = true
-                                }
-                                .font(.caption)
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                    } header: {
-                        Text("视频信息")
-                    }
-
+                    resultCard(result)
                 }
 
-                // Error Display
+                // 错误/成功消息
                 if let error = viewModel.errorMessage {
-                    Section {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
+                    messageCard(error, color: "FF3B30")
                 }
-
-                // Success Message
                 if let success = viewModel.successMessage {
-                    Section {
-                        Text(success)
-                            .foregroundColor(.green)
-                            .font(.caption)
-                    }
+                    messageCard(success, color: "34C759")
                 }
 
-                // Active Downloads
+                // 正在下载
                 if !viewModel.activeTasks.isEmpty {
-                    Section {
-                        ForEach(viewModel.activeTasks) { task in
-                            DownloadTaskRow(
-                                task: task,
-                                onPause: { Task { await viewModel.pauseDownload(task) } },
-                                onResume: { Task { await viewModel.resumeDownload(task) } },
-                                onCancel: { Task { await viewModel.cancelDownload(task) } }
-                            )
-                        }
-                    } header: {
-                        Text("正在下载")
-                    }
+                    activeTasksCard
                 }
 
-                // Completed Downloads
+                // 已完成
                 if !viewModel.completedTasks.isEmpty {
-                    Section {
-                        ForEach(viewModel.completedTasks) { task in
-                            CompletedDownloadRow(
-                                task: task,
-                                onImport: { Task { await viewModel.importToVideoLibrary(task) } },
-                                onTranscribe: {
-                                    pendingTranscribeTask = task
-                                    showTranscribePicker = true
-                                },
-                                onDelete: { Task { await viewModel.deleteTask(task) } }
-                            )
-                        }
-                    } header: {
-                        Text("已完成")
-                    }
+                    completedTasksCard
                 }
 
                 // 免责声明
-                Section {
-                    Text("请遵守版权法规，仅下载您有权下载的内容。")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Text("请遵守版权法规，仅下载您有权下载的内容。")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "8E8E93"))
+
+                // 完成按钮
+                Button(action: { dismiss() }) {
+                    Text("完成")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(Color(hex: "007AFF"))
+                        .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color(hex: "F5F5F7"))
+        .sheet(isPresented: $showFormatSheet) {
+            if let result = viewModel.extractionResult {
+                FormatPickerView(
+                    formats: result.formats,
+                    selectedFormat: $viewModel.selectedFormat,
+                    onConfirm: {
+                        showFormatSheet = false
+                        Task { await viewModel.startDownload() }
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showTranscribePicker) {
+            SubtitleModePickerView { mode in
+                if let task = pendingTranscribeTask {
+                    viewModel.transcribeCompletedTask(task, mode: mode)
                 }
             }
-            .navigationTitle("下载视频")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { dismiss() }
+        }
+        .alert("下载完成", isPresented: $viewModel.showDownloadComplete) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            if let video = viewModel.newlyDownloadedVideo {
+                Text("\(video.title) 已添加到视频库。")
+            }
+        }
+        .alert("转录任务", isPresented: $viewModel.showTranscribeAlert) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(viewModel.transcribeAlertMessage)
+        }
+    }
+
+    // MARK: - 链接卡片
+    private var linkCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("视频链接")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $viewModel.inputURL)
+                    .font(.system(size: 15))
+                    .autocorrectionDisabled()
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .frame(minHeight: 60)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                if viewModel.inputURL.isEmpty {
+                    Text("视频链接 (URL)")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(hex: "C7C7CC"))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .allowsHitTesting(false)
                 }
             }
-            .sheet(isPresented: $showFormatSheet) {
-                if let result = viewModel.extractionResult {
-                    FormatPickerView(
-                        formats: result.formats,
-                        selectedFormat: $viewModel.selectedFormat,
-                        onConfirm: {
-                            showFormatSheet = false
-                            Task { await viewModel.startDownload() }
-                        }
+            .background(Color(hex: "F5F5F7"))
+            .cornerRadius(10)
+
+            TextField("标题（可选，用于显示）", text: $viewModel.videoTitle)
+                .textFieldStyle(.plain)
+                .font(.system(size: 15))
+                .padding(12)
+                .background(Color(hex: "F5F5F7"))
+                .cornerRadius(10)
+
+            Button(action: {
+                Task { await viewModel.parseURL() }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14))
+                    Text("解析并下载")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .background(viewModel.canStartDownload && !viewModel.isParsing ? Color(hex: "007AFF") : Color(hex: "007AFF").opacity(0.5))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            .disabled(!viewModel.canStartDownload || viewModel.isParsing)
+
+            Text("支持直接视频链接（mp4、mkv 等）、YouTube、Bilibili 等平台链接")
+                .font(.system(size: 12))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    // MARK: - 解析结果卡片
+    private func resultCard(_ result: ExtractionResult) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("视频信息")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            HStack(spacing: 8) {
+                Text(result.platform.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(platformColor(result.platform))
+                    .cornerRadius(4)
+
+                if let duration = result.duration {
+                    let minutes = Int(duration) / 60
+                    let seconds = Int(duration) % 60
+                    Text(String(format: "%d:%02d", minutes, seconds))
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "8E8E93"))
+                }
+
+                Spacer()
+            }
+
+            Text(result.title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+                .lineLimit(2)
+
+            if let uploader = result.uploader {
+                Text("up: \(uploader)")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+
+            if !result.formats.isEmpty {
+                Text("\(result.formats.count) 个可用格式")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "007AFF"))
+            }
+
+            if viewModel.hasFormats {
+                Button(action: { showFormatSheet = true }) {
+                    Text("选择画质")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "007AFF"))
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(Color(hex: "F5F5F7"))
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - 正在下载卡片
+    private var activeTasksCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("正在下载")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            VStack(spacing: 12) {
+                ForEach(viewModel.activeTasks) { task in
+                    DownloadTaskRow(
+                        task: task,
+                        onPause: { Task { await viewModel.pauseDownload(task) } },
+                        onResume: { Task { await viewModel.resumeDownload(task) } },
+                        onCancel: { Task { await viewModel.cancelDownload(task) } }
                     )
                 }
             }
-            .sheet(isPresented: $showTranscribePicker) {
-                SubtitleModePickerView { mode in
-                    if let task = pendingTranscribeTask {
-                        viewModel.transcribeCompletedTask(task, mode: mode)
-                    }
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    // MARK: - 已完成卡片
+    private var completedTasksCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("已完成")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            VStack(spacing: 12) {
+                ForEach(viewModel.completedTasks) { task in
+                    CompletedDownloadRow(
+                        task: task,
+                        onImport: { Task { await viewModel.importToVideoLibrary(task) } },
+                        onTranscribe: {
+                            pendingTranscribeTask = task
+                            showTranscribePicker = true
+                        },
+                        onDelete: { Task { await viewModel.deleteTask(task) } }
+                    )
                 }
-            }
-            .alert("下载完成", isPresented: $viewModel.showDownloadComplete) {
-                Button("好的", role: .cancel) {}
-            } message: {
-                if let video = viewModel.newlyDownloadedVideo {
-                    Text("\(video.title) 已添加到视频库。")
-                }
-            }
-            .alert("转录任务", isPresented: $viewModel.showTranscribeAlert) {
-                Button("好的", role: .cancel) {}
-            } message: {
-                Text(viewModel.transcribeAlertMessage)
             }
         }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    private func messageCard(_ message: String, color: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: color == "FF3B30" ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 16))
+                .foregroundColor(Color(hex: color))
+
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: color))
+
+            Spacer()
+        }
+        .padding(16)
+        .background(Color(hex: color).opacity(0.08))
+        .cornerRadius(12)
     }
 
     private func platformColor(_ platform: String) -> Color {
         switch platform.lowercased() {
-        case "youtube": return .red
-        case "bilibili": return .pink
-        case "direct": return .green
-        default: return .gray
+        case "youtube": return Color(hex: "FF3B30")
+        case "bilibili": return Color(hex: "FF9500")
+        case "direct": return Color(hex: "34C759")
+        default: return Color(hex: "8E8E93")
         }
     }
 }
@@ -212,16 +313,17 @@ struct DownloadTaskRow: View {
     let onCancel: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(task.title)
-                        .font(.headline)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
                         .lineLimit(1)
 
                     Text(task.sourceLabel)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "8E8E93"))
                 }
 
                 Spacer()
@@ -229,73 +331,92 @@ struct DownloadTaskRow: View {
                 statusBadge
             }
 
-            ProgressView(value: task.progress)
-                .tint(progressColor)
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color(hex: "E5E5EA"))
+                    .frame(height: 4)
+
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(progressColor)
+                    .frame(width: max(4, 200 * CGFloat(task.progress)), height: 4)
+            }
+            .frame(maxWidth: 200)
 
             HStack {
-                Text("\(task.displayProgress) - \(task.downloadedSizeFormatted) / \(task.totalSizeFormatted)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Text("\(task.displayProgress) · \(task.downloadedSizeFormatted) / \(task.totalSizeFormatted)")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(hex: "8E8E93"))
 
                 Spacer()
 
-                HStack(spacing: 12) {
+                HStack(spacing: 16) {
                     if task.status == .downloading {
                         Button(action: onPause) {
-                            Image(systemName: "pause.circle")
-                                .foregroundColor(.orange)
+                            Image(systemName: "pause.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "FF9500"))
                         }
+                        .buttonStyle(.plain)
                     } else if task.status == .paused {
                         Button(action: onResume) {
-                            Image(systemName: "play.circle")
-                                .foregroundColor(.green)
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "34C759"))
                         }
+                        .buttonStyle(.plain)
                     }
 
                     Button(action: onCancel) {
-                        Image(systemName: "xmark.circle")
-                            .foregroundColor(.red)
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color(hex: "FF3B30"))
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .background(Color(hex: "F5F5F7"))
+        .cornerRadius(12)
     }
 
     @ViewBuilder
     var statusBadge: some View {
         switch task.status {
         case .pending:
-            Text("等待中")
-                .badgeStyle(backgroundColor: Color.gray.opacity(0.3))
+            badgeText("等待中", color: "8E8E93")
         case .parsing:
-            Text("解析中")
-                .badgeStyle(backgroundColor: Color.purple.opacity(0.3))
+            badgeText("解析中", color: "5856D6")
         case .downloading:
-            Text("下载中")
-                .badgeStyle(backgroundColor: Color.blue.opacity(0.3))
+            badgeText("下载中", color: "007AFF")
         case .paused:
-            Text("已暂停")
-                .badgeStyle(backgroundColor: Color.orange.opacity(0.3))
+            badgeText("已暂停", color: "FF9500")
         case .failed:
-            Text("失败")
-                .badgeStyle(backgroundColor: Color.red.opacity(0.3))
+            badgeText("失败", color: "FF3B30")
         case .cancelled:
-            Text("已取消")
-                .badgeStyle(backgroundColor: Color.gray.opacity(0.3))
+            badgeText("已取消", color: "8E8E93")
         case .completed:
-            Text("已完成")
-                .badgeStyle(backgroundColor: Color.green.opacity(0.3))
+            badgeText("已完成", color: "34C759")
         }
+    }
+
+    private func badgeText(_ text: String, color: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(Color(hex: color))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color(hex: color).opacity(0.1))
+            .cornerRadius(4)
     }
 
     var progressColor: Color {
         switch task.status {
-        case .downloading: return .blue
-        case .paused: return .orange
-        case .completed: return .green
-        case .failed, .cancelled: return .red
-        default: return .gray
+        case .downloading: return Color(hex: "007AFF")
+        case .paused: return Color(hex: "FF9500")
+        case .completed: return Color(hex: "34C759")
+        case .failed, .cancelled: return Color(hex: "FF3B30")
+        default: return Color(hex: "8E8E93")
         }
     }
 }
@@ -308,53 +429,58 @@ struct CompletedDownloadRow: View {
     let onDelete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(task.title)
-                    .font(.headline)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
                     .lineLimit(1)
 
-                Spacer()
-
                 Text(task.totalSizeFormatted)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "8E8E93"))
             }
 
-            HStack(spacing: 12) {
+            Spacer()
+
+            HStack(spacing: 8) {
                 Button(action: onImport) {
-                    Label("导入", systemImage: "plus.circle")
-                        .font(.caption)
+                    Text("导入")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(hex: "007AFF"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "F5F5F7"))
+                        .cornerRadius(8)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
 
                 Button(action: onTranscribe) {
-                    Label("转录", systemImage: "captions.bubble")
-                        .font(.caption)
+                    Text("转录")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(hex: "5856D6"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "F5F5F7"))
+                        .cornerRadius(8)
                 }
-                .buttonStyle(.bordered)
-                .tint(.purple)
+                .buttonStyle(.plain)
 
                 Button(action: onDelete) {
-                    Label("删除", systemImage: "trash")
-                        .font(.caption)
-                        .foregroundColor(.red)
+                    Image(systemName: "trash")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "FF3B30"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "F5F5F7"))
+                        .cornerRadius(8)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Badge Style Modifier
-extension Text {
-    func badgeStyle(backgroundColor: Color) -> some View {
-        self.font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(backgroundColor)
-            .cornerRadius(4)
+        .padding(16)
+        .background(Color(hex: "F5F5F7"))
+        .cornerRadius(12)
     }
 }
 

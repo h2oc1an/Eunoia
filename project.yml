@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.speakingenglish
   deploymentTarget:
     iOS: "16.0"
+    macOS: "13.0"
   xcodeVersion: "15.0"
   generateEmptyDirectories: true
 
@@ -23,12 +24,15 @@ targets:
     platform: iOS
     sources:
       - path: App
+        excludes:
+          - "macOS/**"
       - path: Core
       - path: Features
       - path: Shared
       - path: Resources
         excludes:
           - "SampleVideos/**"
+          - "Info-macOS.plist"
       - path: Resources/SampleVideos
         type: folder
         buildPhase: resources
@@ -44,6 +48,41 @@ targets:
         SWIFT_VERSION: "5.9"
         LIBRARY_SEARCH_PATHS: "$(inherited)"
         OTHER_LDFLAGS: "$(inherited)"
+    dependencies:
+      - package: SQLite
+      - package: WhisperKit
+      - package: YouTubeKit
+
+  SpeakingEnglish-macOS:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: App
+      - path: Core
+      - path: Features
+      - path: Shared
+      - path: Resources
+        excludes:
+          - "SampleVideos/**"
+          - "Info.plist"
+      - path: Resources/SampleVideos
+        type: folder
+        buildPhase: resources
+      - path: Resources/WhisperModels
+        buildPhase: resources
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info-macOS.plist
+        PRODUCT_NAME: "讲英格力士"
+        PRODUCT_BUNDLE_IDENTIFIER: com.speakingenglish.h2ocean.macOS
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        DEVELOPMENT_TEAM: ""
+        SWIFT_VERSION: "5.9"
+        LIBRARY_SEARCH_PATHS: "$(inherited)"
+        OTHER_LDFLAGS: "$(inherited)"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
     dependencies:
       - package: SQLite
       - package: WhisperKit

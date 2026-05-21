@@ -87,15 +87,17 @@ struct WordDetailView: View {
                 }
             }
             .navigationTitle("单词详情")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") {
                         dismiss()
                     }
                 }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "保存" : "编辑") {
                         if isEditing {
                             saveChanges()

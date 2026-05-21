@@ -147,9 +147,8 @@ actor DownloadService {
     private let partialDirectory: URL
 
     private init() {
-        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        downloadDirectory = documentsDir.appendingPathComponent("Videos", isDirectory: true)
-        partialDirectory = documentsDir.appendingPathComponent("Downloads/Partial", isDirectory: true)
+        downloadDirectory = Platform.videosURL
+        partialDirectory = Platform.downloadsURL.appendingPathComponent("Partial", isDirectory: true)
 
         try? FileManager.default.createDirectory(at: downloadDirectory, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: partialDirectory, withIntermediateDirectories: true)

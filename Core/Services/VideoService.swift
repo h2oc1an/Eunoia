@@ -1,6 +1,5 @@
 import Foundation
 import AVFoundation
-import UIKit
 
 class VideoService {
     static let shared = VideoService()

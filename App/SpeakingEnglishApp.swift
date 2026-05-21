@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(iOS)
 import Photos
+#endif
 import UserNotifications
 
 @main
@@ -14,6 +16,12 @@ struct SpeakingEnglishApp: App {
                     await requestPermissionsSequentially()
                 }
         }
+        #if os(macOS)
+        .defaultSize(width: 1200, height: 800)
+        .commands {
+            MenuBarCommands()
+        }
+        #endif
     }
 
     /// 首次启动依次请求权限
@@ -26,11 +34,13 @@ struct SpeakingEnglishApp: App {
         let granted = try? await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
         print("通知权限: \(granted == true ? "已授权" : "已拒绝")")
 
-        // 2. 相册权限（iOS 14+）
+        // 2. 相册权限（仅 iOS）
+        #if os(iOS)
         if #available(iOS 14, *) {
             let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
             print("相册权限: \(status == .authorized || status == .limited ? "已授权" : "已拒绝")")
         }
+        #endif
 
         UserDefaults.standard.set(true, forKey: "permissions_requested")
     }
@@ -39,7 +49,7 @@ struct SpeakingEnglishApp: App {
 class AppState: ObservableObject {
     @Published var selectedTab: Tab = .home
 
-    enum Tab {
+    enum Tab: Hashable {
         case home
         case transcription
         case translation

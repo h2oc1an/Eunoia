@@ -1,13 +1,12 @@
 import Foundation
 import AVFoundation
-import UIKit
 
 /// 缩略图生成服务 - 统一管理视频缩略图生成逻辑
 class ThumbnailService {
     static let shared = ThumbnailService()
 
     // 内存缓存 (线程安全)
-    private let memoryCache = NSCache<NSString, UIImage>()
+    private let memoryCache = NSCache<NSString, PlatformImage>()
 
     private init() {
         memoryCache.countLimit = 50
@@ -17,7 +16,7 @@ class ThumbnailService {
     /// 生成视频缩略图
     /// - Parameters:
     ///   - videoURL: 视频URL
-    ///   - saveToDirectory: 可选，保存到的目录 (nil 则只返回 UIImage)
+    ///   - saveToDirectory: 可选，保存到的目录 (nil 则只返回 PlatformImage)
     /// - Returns: 缩略图保存路径或 nil
     func generateThumbnail(
         for videoURL: URL,
@@ -43,14 +42,17 @@ class ThumbnailService {
 
         do {
             let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
-            let uiImage = UIImage(cgImage: cgImage)
+            guard let platformImage = makePlatformImage(cgImage: cgImage) else {
+                print("Thumbnail: 无法从 CGImage 创建图片")
+                return nil
+            }
 
             // 存入内存缓存
-            memoryCache.setObject(uiImage, forKey: cacheKey)
+            memoryCache.setObject(platformImage, forKey: cacheKey)
 
             // 如果需要保存到目录
             if let directory = saveToDirectory {
-                return saveImage(uiImage, to: directory)
+                return saveImage(platformImage, to: directory)
             }
             return nil
         } catch {
@@ -103,12 +105,14 @@ class ThumbnailService {
         for time in tryTimes {
             do {
                 let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
+                guard let platformImage = makePlatformImage(cgImage: cgImage) else {
+                    continue
+                }
 
-                memoryCache.setObject(uiImage, forKey: cacheKey)
+                memoryCache.setObject(platformImage, forKey: cacheKey)
 
                 if let directory = saveToDirectory {
-                    return saveImage(uiImage, to: directory)
+                    return saveImage(platformImage, to: directory)
                 }
                 return nil
             } catch {
@@ -121,7 +125,7 @@ class ThumbnailService {
     }
 
     /// 保存图片到指定目录
-    private func saveImage(_ image: UIImage, to directory: URL) -> String? {
+    private func saveImage(_ image: PlatformImage, to directory: URL) -> String? {
         let fileName = UUID().uuidString + ".jpg"
         let fileURL = directory.appendingPathComponent(fileName)
 

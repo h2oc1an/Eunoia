@@ -13,35 +13,55 @@ struct FlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let width = bounds.width
         let result = FlowResult(in: width, subviews: subviews, spacing: spacing)
+
+        var rowIndex = 0
+        var currentY = result.positions.first?.y ?? 0
+
         for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x,
-                                      y: bounds.minY + result.positions[index].y),
+            let pos = result.positions[index]
+            if pos.y != currentY {
+                rowIndex += 1
+                currentY = pos.y
+            }
+            let rowWidth = result.rowWidths[min(rowIndex, result.rowWidths.count - 1)]
+            let offsetX = max(0, (bounds.width - rowWidth) / 2)
+            subview.place(at: CGPoint(x: bounds.minX + offsetX + pos.x,
+                                      y: bounds.minY + pos.y),
                          proposal: .unspecified)
         }
     }
 
     struct FlowResult {
         var positions: [CGPoint] = []
+        var rowWidths: [CGFloat] = []
         var height: CGFloat = 0
 
         init(in width: CGFloat, subviews: Subviews, spacing: CGFloat) {
             var x: CGFloat = 0
             var y: CGFloat = 0
             var rowHeight: CGFloat = 0
+            var currentRowWidth: CGFloat = 0
 
             for subview in subviews {
                 let size = subview.sizeThatFits(.unspecified)
                 let wordWidth = min(size.width, width - spacing)
 
                 if x + wordWidth > width && x > 0 {
+                    rowWidths.append(currentRowWidth)
                     x = 0
                     y += rowHeight + spacing
                     rowHeight = 0
+                    currentRowWidth = 0
                 }
 
                 positions.append(CGPoint(x: x, y: y))
                 rowHeight = max(rowHeight, size.height)
                 x += wordWidth + spacing
+                currentRowWidth = x - spacing
+            }
+
+            if !subviews.isEmpty {
+                rowWidths.append(currentRowWidth)
             }
 
             height = y + rowHeight
@@ -104,7 +124,7 @@ struct WordPopupView: View {
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
+                            .fill(Color.platformSecondaryBackground)
                     )
                 } else {
                     VStack(spacing: 12) {
@@ -159,7 +179,7 @@ struct WordPopupView: View {
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.systemBackground))
+                    .fill(Color.platformBackground)
                     .shadow(radius: 20)
             )
             .padding(.horizontal, 24)

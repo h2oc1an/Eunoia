@@ -1,4 +1,20 @@
 import SwiftUI
+
+#if os(macOS)
+
+// MARK: - macOS Photo Library Picker (空实现)
+/// macOS 不使用相册选择器，使用文件选择器替代
+struct PhotoLibraryPicker: View {
+    let onSelect: (URL) -> Void
+
+    var body: some View {
+        Text("macOS 请使用文件选择器导入视频")
+            .padding()
+    }
+}
+
+#else
+
 import PhotosUI
 
 // MARK: - Photo Library Picker（相册视频选择器）
@@ -59,3 +75,5 @@ struct PhotoLibraryPicker: UIViewControllerRepresentable {
         }
     }
 }
+
+#endif

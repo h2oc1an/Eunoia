@@ -55,7 +55,7 @@ struct MinimalSubtitleView: View {
                         .font(.system(size: 16))
                         .foregroundColor(.yellow)
                         .shadow(color: .black.opacity(0.8), radius: 2, x: 1, y: 1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
         }
@@ -96,7 +96,7 @@ struct EnglishSubtitleView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func cleanWord(_ word: String) -> String {
@@ -133,7 +133,7 @@ struct MinimalEnglishSubtitleView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func cleanWord(_ word: String) -> String {

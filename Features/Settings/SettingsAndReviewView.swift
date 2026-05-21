@@ -9,18 +9,34 @@ struct SettingsAndReviewView: View {
     @State private var selectedTab: SettingsTab = .settings
     @State private var statistics: LearningStatistics?
     @State private var showingResetConfirmation: Bool = false
+    @State private var showingAboutSheet: Bool = false
+    @State private var showingHelpSheet: Bool = false
     @StateObject private var reviewViewModel = ReviewViewModel()
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Segmented Picker
-                Picker("功能", selection: $selectedTab) {
-                    Text("设置").tag(SettingsTab.settings)
-                    Text("复习").tag(SettingsTab.review)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 标题 + 分段控制器
+                HStack {
+                    Text("设置")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
+
+                    Spacer()
+
+                    // 分段控制器
+                    HStack(spacing: 0) {
+                        tabButton(.settings, label: "设置")
+                        tabButton(.review, label: "复习")
+                    }
+                    .padding(4)
+                    .background(Color(hex: "F5F5F7"))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(hex: "E5E5EA"), lineWidth: 1)
+                    )
                 }
-                .pickerStyle(.segmented)
-                .padding()
 
                 if selectedTab == .settings {
                     settingsContent
@@ -28,57 +44,173 @@ struct SettingsAndReviewView: View {
                     reviewContent
                 }
             }
-            .navigationTitle("设置与复习")
-            .onAppear {
-                loadStatistics()
-            }
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Color(hex: "F5F5F7"))
+        .sheet(isPresented: $showingAboutSheet) {
+            AboutView()
+        }
+        .sheet(isPresented: $showingHelpSheet) {
+            HelpView()
+        }
+        .onAppear {
+            loadStatistics()
+        }
+    }
+
+    private func tabButton(_ tab: SettingsTab, label: String) -> some View {
+        Button(action: { selectedTab = tab }) {
+            Text(label)
+                .font(.system(size: 13, weight: selectedTab == tab ? .semibold : .regular))
+                .foregroundColor(selectedTab == tab ? Color(hex: "007AFF") : Color(hex: "6E6E73"))
+                .frame(width: 70, height: 32)
+                .background(selectedTab == tab ? Color.white : Color.clear)
+                .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Settings Content
 
     private var settingsContent: some View {
-        List {
-            Section {
-                if let stats = statistics {
-                    LabeledContent("总单词数", value: "\(stats.totalWords)")
-                    LabeledContent("待复习", value: "\(stats.wordsToReview)")
-                    LabeledContent("今日已学", value: "\(stats.reviewedToday)")
-                }
-            } header: {
-                Text("学习统计")
+        VStack(alignment: .leading, spacing: 20) {
+            // 学习统计卡片
+            if let stats = statistics {
+                statsCard(stats)
             }
 
-            Section {
-                NavigationLink {
-                    AboutView()
-                } label: {
-                    Label("关于应用", systemImage: "info.circle")
-                }
+            // 信息卡片
+            infoCard
 
-                NavigationLink {
-                    HelpView()
-                } label: {
-                    Label("使用帮助", systemImage: "questionmark.circle")
-                }
-            } header: {
-                Text("信息")
-            }
+            // 数据管理卡片
+            dataCard
+        }
+    }
 
-            Section {
-                Button(role: .destructive) {
-                    showingResetConfirmation = true
-                } label: {
-                    Label("重置所有数据", systemImage: "trash")
-                        .foregroundColor(.red)
-                }
-            } header: {
-                Text("数据管理")
-            } footer: {
-                Text("此操作将删除所有单词和复习记录，且无法恢复。")
+    private func statsCard(_ stats: LearningStatistics) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("学习统计")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            HStack(spacing: 0) {
+                statItem(value: "\(stats.totalWords)", label: "总单词数", color: "007AFF")
+                Divider()
+                    .frame(height: 40)
+                statItem(value: "\(stats.wordsToReview)", label: "待复习", color: "FF9500")
+                Divider()
+                    .frame(height: 40)
+                statItem(value: "\(stats.reviewedToday)", label: "今日已学", color: "34C759")
             }
         }
-        .listStyle(.insetGrouped)
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    private func statItem(value: String, label: String, color: String) -> some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(Color(hex: color))
+
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var infoCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("信息")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+                .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                Button(action: { showingAboutSheet = true }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color(hex: "007AFF"))
+                            .frame(width: 28)
+
+                        Text("关于应用")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "1D1D1F"))
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "C7C7CC"))
+                    }
+                    .padding(.vertical, 14)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .padding(.leading, 40)
+
+                Button(action: { showingHelpSheet = true }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color(hex: "FF9500"))
+                            .frame(width: 28)
+
+                        Text("使用帮助")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "1D1D1F"))
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "C7C7CC"))
+                    }
+                    .padding(.vertical, 14)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    private var dataCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("数据管理")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            Button(action: { showingResetConfirmation = true }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color(hex: "FF3B30"))
+                        .frame(width: 28)
+
+                    Text("重置所有数据")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(hex: "FF3B30"))
+
+                    Spacer()
+                }
+                .padding(.vertical, 14)
+            }
+            .buttonStyle(.plain)
+
+            Text("此操作将删除所有单词和复习记录，且无法恢复。")
+                .font(.system(size: 12))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
         .confirmationDialog("确认重置", isPresented: $showingResetConfirmation) {
             Button("重置所有数据", role: .destructive) {
                 resetAllData()
@@ -95,6 +227,7 @@ struct SettingsAndReviewView: View {
         Group {
             if reviewViewModel.isLoading {
                 ProgressView("加载中...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if reviewViewModel.wordsToReview.isEmpty {
                 EmptyReviewView()
             } else if reviewViewModel.isCompleted {
@@ -139,19 +272,20 @@ struct EmptyReviewView: View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.green)
+                .foregroundColor(Color(hex: "34C759"))
 
             Text("太棒了！")
                 .font(.title)
                 .fontWeight(.bold)
+                .foregroundColor(Color(hex: "1D1D1F"))
 
             Text("目前没有需要复习的单词")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color(hex: "8E8E93"))
 
             Text("继续学习更多单词吧")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color(hex: "C7C7CC"))
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -168,20 +302,27 @@ struct ReviewCompletedView: View {
         VStack(spacing: 20) {
             Image(systemName: "star.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.yellow)
+                .foregroundColor(Color(hex: "FFCC00"))
 
             Text("复习完成！")
                 .font(.title)
                 .fontWeight(.bold)
+                .foregroundColor(Color(hex: "1D1D1F"))
 
             Text("已复习 \(reviewedCount) 个单词")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color(hex: "8E8E93"))
 
             Button(action: onStartAgain) {
                 Text("再复习一次")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(Color(hex: "007AFF"))
+                    .cornerRadius(12)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .frame(maxWidth: 200)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -203,17 +344,16 @@ struct ReviewCardView: View {
             HStack {
                 Text("进度: \(progress.current)/\(progress.total)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color(hex: "8E8E93"))
 
                 Spacer()
 
                 if let nextReview = word.lastReviewDate {
                     Text("上次: \(nextReview, style: .relative)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(hex: "8E8E93"))
                 }
             }
-            .padding(.horizontal)
 
             Spacer()
 
@@ -221,36 +361,34 @@ struct ReviewCardView: View {
             VStack(spacing: 16) {
                 Text(word.word)
                     .font(.system(size: 36, weight: .bold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
 
                 if showingAnswer {
                     if let meaning = word.meaning, !meaning.isEmpty {
                         Text(meaning)
                             .font(.title3)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color(hex: "6E6E73"))
                             .transition(.opacity)
                     }
 
                     if let context = word.context, !context.isEmpty {
                         Text(context)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color(hex: "8E8E93"))
                             .lineLimit(3)
                             .padding(.top, 8)
                     }
                 } else {
                     Text("点击查看答案")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(hex: "8E8E93"))
                 }
             }
             .frame(maxWidth: .infinity)
             .padding(32)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-            )
-            .padding(.horizontal)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
 
             Spacer()
 
@@ -262,14 +400,15 @@ struct ReviewCardView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.blue)
+                            .background(Color(hex: "007AFF"))
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
+                    .buttonStyle(.plain)
                 } else {
                     Text("回忆程度如何？")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(hex: "8E8E93"))
 
                     HStack(spacing: 8) {
                         ForEach(SM2Algorithm.Quality.allCases, id: \.rawValue) { quality in
@@ -282,6 +421,7 @@ struct ReviewCardView: View {
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -289,6 +429,9 @@ struct ReviewCardView: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
     }
 
     private func qualityButtonColor(_ quality: SM2Algorithm.Quality) -> Color {
@@ -312,86 +455,193 @@ struct ReviewCardView: View {
 // MARK: - About View
 
 struct AboutView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        List {
-            Section {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 标题栏
+                HStack {
+                    Text("关于应用")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
+
+                    Spacer()
+
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(Color(hex: "C7C7CC"))
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 VStack(spacing: 16) {
                     Image(systemName: "book.and.wizard")
                         .font(.system(size: 60))
-                        .foregroundColor(.blue)
+                        .foregroundColor(Color(hex: "007AFF"))
 
-                    Text("SpeakingEnglish")
+                    Text("讲英格力士")
                         .font(.title)
                         .fontWeight(.bold)
+                        .foregroundColor(Color(hex: "1D1D1F"))
 
                     Text("版本 1.0.0")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(hex: "8E8E93"))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-            }
+                .padding(.vertical, 40)
+                .background(Color.white)
+                .cornerRadius(16)
 
-            Section {
-                Text("一款帮助你通过视频学习英语的应用。在观看视频时，可以自动提取字幕中的单词，方便学习和复习。")
-                    .font(.body)
-            } header: {
-                Text("介绍")
-            }
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("介绍")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
 
-            Section {
-                LabeledContent("开发", value: "H2Ocean")
-                LabeledContent("设计", value: "H2Ocean")
-            } header: {
-                Text("Credits")
+                    Text("一款帮助你通过视频学习英语的应用。在观看视频时，可以自动提取字幕中的单词，方便学习和复习。")
+                        .font(.body)
+                        .foregroundColor(Color(hex: "6E6E73"))
+                        .lineSpacing(4)
+                }
+                .padding(24)
+                .background(Color.white)
+                .cornerRadius(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Credits")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
+
+                    HStack {
+                        Text("开发")
+                            .font(.body)
+                            .foregroundColor(Color(hex: "6E6E73"))
+                        Spacer()
+                        Text("H2Ocean")
+                            .font(.body)
+                            .foregroundColor(Color(hex: "1D1D1F"))
+                    }
+
+                    Divider()
+
+                    HStack {
+                        Text("设计")
+                            .font(.body)
+                            .foregroundColor(Color(hex: "6E6E73"))
+                        Spacer()
+                        Text("H2Ocean")
+                            .font(.body)
+                            .foregroundColor(Color(hex: "1D1D1F"))
+                    }
+                }
+                .padding(24)
+                .background(Color.white)
+                .cornerRadius(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Color(hex: "F5F5F7"))
     }
 }
 
 // MARK: - Help View
 
 struct HelpView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("1. 观看视频")
-                        .font(.headline)
-                    Text("在首页选择要学习的视频，观看时字幕会同步显示。")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 4)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Text("使用帮助")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("2. 点击单词")
-                        .font(.headline)
-                    Text("在字幕中点击任意单词，可以将其添加到生词本。")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 4)
+                    Spacer()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("3. 复习记忆")
-                        .font(.headline)
-                    Text("使用 SM-2 间隔重复算法，科学安排复习时间，提高记忆效率。")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(Color(hex: "C7C7CC"))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.vertical, 4)
-            } header: {
-                Text("使用方法")
+
+                helpCard(
+                    icon: "play.rectangle",
+                    iconColor: "007AFF",
+                    title: "观看视频",
+                    description: "在首页选择要学习的视频，观看时字幕会同步显示。"
+                )
+
+                helpCard(
+                    icon: "hand.tap",
+                    iconColor: "FF9500",
+                    title: "点击单词",
+                    description: "在字幕中点击任意单词，可以将其添加到生词本。"
+                )
+
+                helpCard(
+                    icon: "brain",
+                    iconColor: "34C759",
+                    title: "复习记忆",
+                    description: "使用 SM-2 间隔重复算法，科学安排复习时间，提高记忆效率。"
+                )
+
+                faqSection
             }
-
-            Section {
-                AccordionView(title: "什么是 SM-2 算法？", content: "SM-2 是一种间隔重复算法，由 Piotr Wozniak 发明。它根据你对每个单词的记忆程度，计算最佳复习间隔，帮助你更高效地记忆单词。")
-                AccordionView(title: "如何获得示例视频？", content: "将 MP4 格式的视频和对应字幕文件放入 Resources/SampleVideos 目录即可。支持 SRT 和 ASS 格式的字幕文件。")
-            } header: {
-                Text("常见问题")
-            }
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Color(hex: "F5F5F7"))
+    }
+
+    private func helpCard(icon: String, iconColor: String, title: String, description: String) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(Color(hex: iconColor))
+                .frame(width: 44, height: 44)
+                .background(Color(hex: "F5F5F7"))
+                .cornerRadius(12)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
+
+                Text(description)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "6E6E73"))
+                    .lineLimit(nil)
+            }
+
+            Spacer()
+        }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    private var faqSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("常见问题")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            AccordionView(title: "什么是 SM-2 算法？", content: "SM-2 是一种间隔重复算法，由 Piotr Wozniak 发明。它根据你对每个单词的记忆程度，计算最佳复习间隔，帮助你更高效地记忆单词。")
+
+            AccordionView(title: "如何获得示例视频？", content: "将 MP4 格式的视频和对应字幕文件放入 Resources/SampleVideos 目录即可。支持 SRT 和 ASS 格式的字幕文件。")
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -408,22 +658,24 @@ struct AccordionView: View {
                 HStack {
                     Text(title)
                         .font(.subheadline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(Color(hex: "1D1D1F"))
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(hex: "8E8E93"))
                 }
             }
+            .buttonStyle(.plain)
 
             if isExpanded {
                 Text(content)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color(hex: "6E6E73"))
                     .padding(.top, 4)
+                    .lineSpacing(2)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 }
 

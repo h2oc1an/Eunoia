@@ -15,7 +15,9 @@ struct AddWordView: View {
             Form {
                 Section {
                     TextField("单词", text: $word)
+                        #if os(iOS)
                         .autocapitalization(.none)
+                        #endif
                         .autocorrectionDisabled()
                 } header: {
                     Text("单词")
@@ -35,15 +37,17 @@ struct AddWordView: View {
                 }
             }
             .navigationTitle("添加单词")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
                         dismiss()
                     }
                 }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
                         saveWord()
                     }

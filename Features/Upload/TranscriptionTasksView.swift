@@ -23,7 +23,7 @@ struct TranscriptionTasksView: View {
             }
             .navigationTitle("转录任务")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button("清理已完成任务", role: .destructive) {
                             taskManager.tasks.removeAll { $0.status == .completed || $0.status == .failed }
@@ -410,9 +410,11 @@ struct TaskDetailView: View {
                 }
             }
             .navigationTitle("任务详情")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") {
                         dismiss()
                     }

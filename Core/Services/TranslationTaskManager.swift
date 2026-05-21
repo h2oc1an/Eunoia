@@ -1,7 +1,9 @@
 import Foundation
 import Combine
 import UserNotifications
+#if os(iOS)
 import UIKit
+#endif
 
 /// 翻译任务状态
 enum TranslationTaskStatus: String, Codable {
@@ -60,7 +62,9 @@ class TranslationTaskManager: ObservableObject {
     @Published var tasks: [TranslationTask] = []
 
     private var runningTask: Task<Void, Never>?
+    #if os(iOS)
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    #endif
     private var notificationCenter = UNUserNotificationCenter.current()
 
     private let translationService = TranslationService.shared
@@ -127,9 +131,8 @@ class TranslationTaskManager: ObservableObject {
                 await self.updateProgress(taskID, progress: 0.5, message: "复制字幕文件...")
 
                 let sourceURL = URL(fileURLWithPath: sourcePath)
-                let tempDir = FileManager.default.temporaryDirectory
                 let fileName = sourceURL.lastPathComponent
-                let resultURL = tempDir.appendingPathComponent(fileName)
+                let resultURL = Platform.subtitlesURL.appendingPathComponent(fileName)
 
                 do {
                     if FileManager.default.fileExists(atPath: resultURL.path) {
@@ -193,9 +196,8 @@ class TranslationTaskManager: ObservableObject {
                 } else {
                     srtContent = self.transcriptionService.generateSRT(from: entries)
                 }
-                let tempDir = FileManager.default.temporaryDirectory
                 let fileName = sourceURL.deletingPathExtension().lastPathComponent + "_cn.srt"
-                let resultURL = tempDir.appendingPathComponent(fileName)
+                let resultURL = Platform.subtitlesURL.appendingPathComponent(fileName)
 
                 try srtContent.write(to: resultURL, atomically: true, encoding: .utf8)
 
@@ -308,23 +310,26 @@ class TranslationTaskManager: ObservableObject {
     // MARK: - Background Task
 
     private func startBackgroundTask() {
+        #if os(iOS)
         backgroundTaskID = UIApplication.shared.beginBackgroundTask { [weak self] in
             self?.endBackgroundTask()
         }
+        #endif
     }
 
     private func endBackgroundTask() {
+        #if os(iOS)
         if backgroundTaskID != .invalid {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
         }
+        #endif
     }
 
     // MARK: - Persistence
 
     private var tasksFileURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("translation_tasks.json")
+        Platform.baseURL.appendingPathComponent("translation_tasks.json")
     }
 
     func saveTasks() {

@@ -34,4 +34,22 @@ extension Color {
     static let backgroundLight = Color(hex: "F2F2F7")
     static let textPrimary = Color(hex: "1C1C1E")
     static let textSecondary = Color(hex: "8E8E93")
+
+    /// 跨平台系统背景色
+    static var platformBackground: Color {
+        #if os(macOS)
+        return Color(nsColor: .controlBackgroundColor)
+        #else
+        return Color(uiColor: .systemBackground)
+        #endif
+    }
+
+    /// 跨平台次要背景色
+    static var platformSecondaryBackground: Color {
+        #if os(macOS)
+        return Color(nsColor: .controlBackgroundColor).opacity(0.6)
+        #else
+        return Color(uiColor: .systemGray6)
+        #endif
+    }
 }

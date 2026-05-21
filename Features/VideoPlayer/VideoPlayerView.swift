@@ -1,5 +1,8 @@
 import SwiftUI
 import AVKit
+#if os(macOS)
+import AppKit
+#endif
 
 struct VideoPlayerView: View {
     let video: Video
@@ -8,6 +11,9 @@ struct VideoPlayerView: View {
     @State private var hasInitialized = false
     @State private var showSubtitleShare = false
     @State private var showSubtitlePicker = false
+    #if os(macOS)
+    @State private var keyMonitor: Any?
+    #endif
 
     init(video: Video) {
         self.video = video
@@ -28,8 +34,6 @@ struct VideoPlayerView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
-        .statusBar(hidden: true)
         .sheet(isPresented: $showSubtitleShare) {
             if let subtitlePath = video.subtitlePath {
                 SubtitleShareView(subtitlePath: subtitlePath, videoTitle: video.title)
@@ -51,9 +55,24 @@ struct VideoPlayerView: View {
                 hasInitialized = true
                 viewModel.setupPlayer(with: video)
             }
+            #if os(macOS)
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.keyCode == 53 {
+                    dismiss()
+                    return nil
+                }
+                return event
+            }
+            #endif
         }
         .onDisappear {
             viewModel.cleanup()
+            #if os(macOS)
+            if let monitor = keyMonitor {
+                NSEvent.removeMonitor(monitor)
+                keyMonitor = nil
+            }
+            #endif
         }
     }
 
@@ -62,22 +81,6 @@ struct VideoPlayerView: View {
     private func portraitLayout(geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
             HStack {
-                Button(action: { dismiss() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("返回")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(8)
-                }
-                .padding(.leading, 16)
-                .padding(.top, 8)
-
                 Spacer()
 
                 // 书签按钮
@@ -126,7 +129,7 @@ struct VideoPlayerView: View {
                 }
             }
 
-            VideoPlayer(player: viewModel.player)
+            PlatformVideoPlayer(player: viewModel.player)
                 .frame(height: geometry.size.height * 0.35)
                 .overlay(
                     VideoGestureView(
@@ -151,15 +154,6 @@ struct VideoPlayerView: View {
 
             Spacer()
 
-            VideoProgressView(
-                currentTime: viewModel.currentTime,
-                duration: viewModel.duration,
-                onSeek: { time in
-                    viewModel.seek(to: time)
-                }
-            )
-
-            VideoControlBar(viewModel: viewModel)
         }
 
         wordPopupOverlay
@@ -169,31 +163,8 @@ struct VideoPlayerView: View {
     @ViewBuilder
     private func landscapeLayout(geometry: GeometryProxy) -> some View {
         ZStack {
-            VideoPlayer(player: viewModel.player)
+            PlatformVideoPlayer(player: viewModel.player)
                 .ignoresSafeArea()
-
-            VStack {
-                HStack {
-                    Button(action: { dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("返回")
-                                .font(.system(size: 16, weight: .medium))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(8)
-                    }
-                    Spacer()
-                }
-                .padding(.top, 8)
-                .padding(.leading, 16)
-
-                Spacer()
-            }
 
             VStack {
                 Spacer()
@@ -208,19 +179,6 @@ struct VideoPlayerView: View {
                 .padding(.bottom, 50)
             }
 
-            VStack {
-                Spacer()
-
-                VideoProgressView(
-                    currentTime: viewModel.currentTime,
-                    duration: viewModel.duration,
-                    onSeek: { time in
-                        viewModel.seek(to: time)
-                    }
-                )
-                .padding(.horizontal, 40)
-                .padding(.bottom, 8)
-            }
         }
 
         wordPopupOverlay

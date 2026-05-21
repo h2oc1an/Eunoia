@@ -13,129 +13,220 @@ struct HomeView: View {
     @State private var transcribeAlertMessage: String = ""
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Statistics Card
-                    if let stats = statistics {
-                        StatisticsCardView(statistics: stats)
-                            .padding(.horizontal)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 标题栏
+                HStack {
+                    Text("首页")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
+
+                    Spacer()
+
+                    HStack(spacing: 0) {
+                        Button(action: { Task { await loadData() } }) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "6E6E73"))
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Divider()
+                            .frame(height: 16)
+
+                        Button(action: { showUploadSheet = true }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.up.doc")
+                                    .font(.system(size: 12))
+                                Text("上传")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundColor(Color(hex: "007AFF"))
+                            .frame(height: 32)
+                            .padding(.horizontal, 10)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: { showDownloadSheet = true }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.down.circle")
+                                    .font(.system(size: 12))
+                                Text("下载")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundColor(Color(hex: "007AFF"))
+                            .frame(height: 32)
+                            .padding(.horizontal, 10)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .padding(4)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(hex: "E5E5EA"), lineWidth: 1)
+                    )
+                }
 
-                    // Video List
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("视频")
-                            .font(.headline)
-                            .padding(.horizontal)
+                // 统计卡片
+                if let stats = statistics {
+                    statsCard(stats)
+                }
 
-                        if isLoading {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                        } else if videos.isEmpty {
-                            EmptyVideosView()
-                        } else {
-                            ScrollView {
-                                LazyVStack(spacing: 16) {
-                                    ForEach(videos) { video in
-                                        HStack(spacing: 0) {
-                                            VideoCardView(video: video)
-                                                .onTapGesture {
-                                                    selectedVideo = video
-                                                }
-                                                .contextMenu {
-                                                    if video.subtitlePath == nil {
-                                                        Button {
-                                                            subtitleTargetVideo = video
-                                                            showSubtitlePicker = true
-                                                        } label: {
-                                                            Label("生成字幕", systemImage: "captions.bubble")
-                                                        }
-                                                    }
-                                                    Button(role: .destructive) {
-                                                        deleteVideo(video)
-                                                    } label: {
-                                                        Label("删除", systemImage: "trash")
-                                                    }
-                                                }
-                                        }
-                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                            Button(role: .destructive) {
-                                                deleteVideo(video)
-                                            } label: {
-                                                Label("删除", systemImage: "trash")
-                                            }
-                                        }
+                // 视频列表区域
+                videoSection
+            }
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color(hex: "F5F5F7"))
+        .sheet(item: $selectedVideo) { video in
+            VideoPlayerView(video: video)
+                .frame(minWidth: 800, minHeight: 600)
+        }
+        .sheet(isPresented: $showUploadSheet) {
+            UploadView()
+        }
+        .sheet(isPresented: $showDownloadSheet) {
+            DownloadView()
+        }
+        .sheet(isPresented: $showSubtitlePicker) {
+            SubtitleModePickerView { mode in
+                if let video = subtitleTargetVideo {
+                    startTranscriptionForHomeVideo(video, mode: mode)
+                }
+            }
+        }
+        .onChange(of: showUploadSheet) { isPresented in
+            if !isPresented {
+                Task { @MainActor in
+                    await loadData()
+                }
+            }
+        }
+        .onChange(of: showDownloadSheet) { isPresented in
+            if !isPresented {
+                Task { @MainActor in
+                    await loadData()
+                }
+            }
+        }
+        .alert("转录任务", isPresented: $showTranscribeAlert) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(transcribeAlertMessage)
+        }
+        .onAppear {
+            loadSampleDataIfNeeded()
+        }
+    }
+
+    // MARK: - 统计卡片
+    private func statsCard(_ stats: LearningStatistics) -> some View {
+        HStack(spacing: 0) {
+            statItem(value: "\(stats.totalWords)", label: "总单词数", color: "007AFF")
+            Divider()
+                .frame(height: 40)
+            statItem(value: "\(stats.wordsToReview)", label: "待复习", color: "FF9500")
+            Divider()
+                .frame(height: 40)
+            statItem(value: "\(stats.reviewedToday)", label: "今日已学", color: "34C759")
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    private func statItem(value: String, label: String, color: String) -> some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(Color(hex: color))
+
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - 视频列表区域
+    @ViewBuilder
+    private var videoSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("视频")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
+
+                Spacer()
+
+                if !videos.isEmpty {
+                    Text("\(videos.count) 个视频")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "8E8E93"))
+                }
+            }
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+            } else if videos.isEmpty {
+                emptyState
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(videos) { video in
+                        VideoListRow(video: video)
+                            .onTapGesture {
+                                selectedVideo = video
+                            }
+                            .contextMenu {
+                                if video.subtitlePath == nil {
+                                    Button {
+                                        subtitleTargetVideo = video
+                                        showSubtitlePicker = true
+                                    } label: {
+                                        Label("生成字幕", systemImage: "captions.bubble")
                                     }
                                 }
-                                .padding(.horizontal)
+                                Button(role: .destructive) {
+                                    deleteVideo(video)
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
                             }
-                        }
                     }
                 }
-                .padding(.vertical)
-            }
-            .navigationTitle("讲英格力士")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button(action: { showUploadSheet = true }) {
-                            Label("上传本地视频", systemImage: "doc.fill")
-                        }
-                        Button(action: { showDownloadSheet = true }) {
-                            Label("下载视频", systemImage: "arrow.down.circle.fill")
-                        }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                    }
-                }
-            }
-            .refreshable {
-                await loadData()
-            }
-            .onAppear {
-                loadSampleDataIfNeeded()
-            }
-            .fullScreenCover(item: $selectedVideo) { video in
-                VideoPlayerView(video: video)
-            }
-            .sheet(isPresented: $showUploadSheet) {
-                UploadView()
-            }
-            .sheet(isPresented: $showDownloadSheet) {
-                DownloadView()
-            }
-            .sheet(isPresented: $showSubtitlePicker) {
-                SubtitleModePickerView { mode in
-                    if let video = subtitleTargetVideo {
-                        startTranscriptionForHomeVideo(video, mode: mode)
-                    }
-                }
-            }
-            .onChange(of: showUploadSheet) { isPresented in
-                if !isPresented {
-                    // 上传完成后刷新数据
-                    Task { @MainActor in
-                        await loadData()
-                    }
-                }
-            }
-            .onChange(of: showDownloadSheet) { isPresented in
-                if !isPresented {
-                    // 下载完成后刷新数据
-                    Task { @MainActor in
-                        await loadData()
-                    }
-                }
-            }
-            .alert("转录任务", isPresented: $showTranscribeAlert) {
-                Button("好的", role: .cancel) {}
-            } message: {
-                Text(transcribeAlertMessage)
             }
         }
     }
+
+    // MARK: - 空状态
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "film")
+                .font(.system(size: 50))
+                .foregroundColor(Color(hex: "C7C7CC"))
+
+            Text("暂无视频")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color(hex: "8E8E93"))
+
+            Text("点击右上角添加视频开始学习")
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "C7C7CC"))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 80)
+    }
+
+    // MARK: - Actions
 
     private func loadSampleDataIfNeeded() {
         do {
@@ -171,7 +262,6 @@ struct HomeView: View {
         }
     }
 
-    /// 从 HomeView 长按菜单触发的转录
     private func startTranscriptionForHomeVideo(_ video: Video, mode: SubtitleMode) {
         TranscriptionTaskManager.shared.startTranscription(
             videoTitle: video.title,
@@ -180,8 +270,7 @@ struct HomeView: View {
         ) { result in
             switch result {
             case .success(let transcriptionResult):
-                let subtitleDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                    .appendingPathComponent("Subtitles", isDirectory: true)
+                let subtitleDir = Platform.subtitlesURL
                 try? FileManager.default.createDirectory(at: subtitleDir, withIntermediateDirectories: true)
 
                 let destURL = subtitleDir.appendingPathComponent("\(video.id.uuidString).srt")
@@ -200,91 +289,40 @@ struct HomeView: View {
     }
 }
 
-struct StatisticsCardView: View {
-    let statistics: LearningStatistics
+// MARK: - 视频列表行
 
-    var body: some View {
-        HStack(spacing: 16) {
-            StatItemView(
-                icon: "book.fill",
-                value: "\(statistics.totalWords)",
-                label: "总单词",
-                color: .blue
-            )
-
-            Divider()
-
-            StatItemView(
-                icon: "clock.fill",
-                value: "\(statistics.wordsToReview)",
-                label: "待复习",
-                color: .orange
-            )
-
-            Divider()
-
-            StatItemView(
-                icon: "checkmark.circle.fill",
-                value: "\(statistics.reviewedToday)",
-                label: "今日已学",
-                color: .green
-            )
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-        )
-    }
-}
-
-struct StatItemView: View {
-    let icon: String
-    let value: String
-    let label: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-struct VideoCardView: View {
+struct VideoListRow: View {
     let video: Video
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Thumbnail with caching
+        HStack(spacing: 16) {
+            // 缩略图
             ZStack {
-                CachedAsyncImage(path: video.thumbnailPath)
+                if let thumbnailPath = video.thumbnailPath {
+                    CachedAsyncImage(path: thumbnailPath)
+                        .frame(width: 160, height: 90)
+                        .cornerRadius(8)
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(hex: "F5F5F7"))
+                        .frame(width: 160, height: 90)
+                        .overlay(
+                            Image(systemName: "film")
+                                .font(.system(size: 24))
+                                .foregroundColor(Color(hex: "C7C7CC"))
+                        )
+                }
 
-                // Play button overlay
                 Image(systemName: "play.circle.fill")
-                    .font(.system(size: 44))
+                    .font(.system(size: 32))
                     .foregroundColor(.white.opacity(0.9))
 
-                // Duration badge
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
                         Text(formatDuration(video.duration))
-                            .font(.caption2)
-                            .fontWeight(.medium)
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -292,55 +330,50 @@ struct VideoCardView: View {
                             .cornerRadius(4)
                     }
                 }
-                .padding(8)
+                .padding(6)
             }
-            .cornerRadius(8)
+            .frame(width: 160, height: 90)
 
-            VStack(alignment: .leading, spacing: 4) {
+            // 视频信息
+            VStack(alignment: .leading, spacing: 8) {
                 Text(video.title)
-                    .font(.headline)
-                    .lineLimit(1)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
+                    .lineLimit(2)
 
-                HStack {
+                HStack(spacing: 4) {
                     if video.subtitlePath != nil {
-                        Label("字幕", systemImage: "captions.bubble")
-                            .font(.caption)
+                        Image(systemName: "captions.bubble")
+                            .font(.system(size: 11))
+                        Text("已字幕")
+                            .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(hex: "34C759"))
+                    } else {
+                        Image(systemName: "captions.bubble.slash")
+                            .font(.system(size: 11))
+                        Text("无字幕")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "8E8E93"))
                     }
-                    Spacer()
                 }
-                .foregroundColor(.secondary)
+
+                if let lastPlayed = video.lastPlayedAt {
+                    Text("上次观看: \(lastPlayed, style: .relative)前")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "C7C7CC"))
+                }
             }
+
+            Spacer()
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-        )
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(12)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
-    }
-}
-
-struct EmptyVideosView: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "film")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-
-            Text("暂无视频")
-                .font(.headline)
-
-            Text("请添加示例视频到 Resources/SampleVideos 目录")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
     }
 }

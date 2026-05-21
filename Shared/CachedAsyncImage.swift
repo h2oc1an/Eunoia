@@ -3,14 +3,19 @@ import SwiftUI
 /// 带缓存的异步图片加载组件
 struct CachedAsyncImage: View {
     let path: String?
-    @State private var image: UIImage?
+    @State private var image: PlatformImage?
     @State private var isLoading = false
 
     var body: some View {
         Group {
             if let img = image {
+                #if os(macOS)
+                Image(nsImage: img)
+                    .resizable()
+                #else
                 Image(uiImage: img)
                     .resizable()
+                #endif
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
@@ -35,7 +40,7 @@ struct CachedAsyncImage: View {
         isLoading = true
         Task {
             // 异步加载
-            if let loadedImage = UIImage(contentsOfFile: path) {
+            if let loadedImage = PlatformImage(contentsOfFile: path) {
                 // 存入缓存
                 ImageCacheStorage.shared.set(loadedImage, for: path)
                 await MainActor.run {
@@ -51,18 +56,18 @@ struct CachedAsyncImage: View {
 final class ImageCacheStorage {
     static let shared = ImageCacheStorage()
 
-    private let cache = NSCache<NSString, UIImage>()
+    private let cache = NSCache<NSString, PlatformImage>()
 
     private init() {
         cache.countLimit = 50
         cache.totalCostLimit = 50 * 1024 * 1024 // 50MB
     }
 
-    func get(_ path: String) -> UIImage? {
+    func get(_ path: String) -> PlatformImage? {
         return cache.object(forKey: path as NSString)
     }
 
-    func set(_ image: UIImage, for path: String) {
+    func set(_ image: PlatformImage, for path: String) {
         if let data = image.jpegData(compressionQuality: 0.8) {
             cache.setObject(image, forKey: path as NSString, cost: data.count)
         }

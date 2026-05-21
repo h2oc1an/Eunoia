@@ -56,7 +56,9 @@ struct SubtitleModePickerView: View {
                 }
             }
             .navigationTitle("字幕模式")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }

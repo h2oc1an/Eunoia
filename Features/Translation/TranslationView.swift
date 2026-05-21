@@ -13,166 +13,244 @@ struct TranslationView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                // 字幕翻译区域
-                Section {
-                    if let url = selectedSubtitleURL {
-                        HStack {
-                            Image(systemName: "doc.text.fill")
-                                .foregroundColor(.orange)
-                            Text(url.lastPathComponent)
-                                .lineLimit(1)
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                        }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("翻译")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
 
-                        Button(role: .destructive, action: {
-                            selectedSubtitleURL = nil
-                        }) {
-                            Label("移除文件", systemImage: "trash")
-                        }
-
-                        HStack {
-                            Image(systemName: "text.bubble")
-                                .foregroundColor(.orange)
-                            Picker("字幕模式", selection: $selectedSubtitleMode) {
-                                ForEach(SubtitleMode.translationModes, id: \.self) { mode in
-                                    Text(mode.displayName).tag(mode)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                        .padding(.vertical, 4)
-
-                        Button(action: {
-                            startTranslation()
-                        }) {
-                            HStack {
-                                Image(systemName: "character.bubble")
-                                    .foregroundColor(.purple)
-                                Text("开始翻译")
-                                Spacer()
-                            }
-                        }
-                    } else {
-                        Button(action: { showSubtitlePicker = true }) {
-                            HStack {
-                                Image(systemName: "doc.text")
-                                    .foregroundColor(.orange)
-                                Text("选择字幕文件")
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("字幕翻译")
-                } footer: {
-                    Text(subtitleFooterText)
-                }
+                // 字幕翻译卡片
+                translateCard
 
                 // 翻译任务列表
                 if !translationManager.tasks.isEmpty {
-                    Section {
-                        ForEach(translationManager.tasks) { task in
-                            TranslationTaskRowView(task: task)
-                                .onTapGesture {
-                                    selectedTaskID = task.id
-                                }
-                                .contextMenu {
-                                    if task.status == .completed, let resultPath = task.resultPath {
-                                        ShareLink(item: URL(fileURLWithPath: resultPath)) {
-                                            Label("导出字幕", systemImage: "square.and.arrow.up")
-                                        }
-                                    }
-
-                                    Button {
-                                        selectedTaskID = task.id
-                                    } label: {
-                                        Label("查看详情", systemImage: "info.circle")
-                                    }
-
-                                    Divider()
-
-                                    Button(role: .destructive) {
-                                        translationManager.deleteTask(task.id)
-                                    } label: {
-                                        Label("删除", systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        translationManager.deleteTask(task.id)
-                                    } label: {
-                                        Label("删除", systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .leading) {
-                                    if task.status == .inProgress {
-                                        Button {
-                                            translationManager.cancelTask(task.id)
-                                        } label: {
-                                            Label("取消", systemImage: "xmark")
-                                        }
-                                        .tint(.orange)
-                                    }
-                                }
-                        }
-                    } header: {
-                        HStack {
-                            Text("翻译任务")
-                            Spacer()
-                            Menu {
-                                Button("清空已完成", role: .destructive) {
-                                    translationManager.clearFinishedTasks()
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                            }
-                        }
-                    }
+                    tasksSection
                 }
 
                 // 空状态
                 if translationManager.tasks.isEmpty && selectedSubtitleURL == nil {
-                    Section {
-                        VStack(spacing: 16) {
-                            Image(systemName: "character.bubble")
-                                .font(.system(size: 50))
-                                .foregroundColor(.secondary)
-
-                            Text("暂无翻译任务")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Text("选择字幕文件开始翻译")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                    }
+                    emptyState
                 }
             }
-            .navigationTitle("翻译")
-            .sheet(isPresented: Binding(
-                get: { selectedTask != nil },
-                set: { if !$0 { selectedTaskID = nil } }
-            )) {
-                if let task = selectedTask {
-                    TranslationTaskDetailView(task: task)
-                }
-            }
-            .sheet(isPresented: $showSubtitlePicker) {
-                SubtitlePickerView { url in
-                    selectedSubtitleURL = url
-                    showSubtitlePicker = false
-                }
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color(hex: "F5F5F7"))
+        .sheet(isPresented: Binding(
+            get: { selectedTask != nil },
+            set: { if !$0 { selectedTaskID = nil } }
+        )) {
+            if let task = selectedTask {
+                TranslationTaskDetailView(task: task)
             }
         }
+        .sheet(isPresented: $showSubtitlePicker) {
+            SubtitlePickerView { url in
+                selectedSubtitleURL = url
+                showSubtitlePicker = false
+            }
+        }
+    }
+
+    // MARK: - 字幕翻译卡片
+    private var translateCard: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("字幕翻译")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(hex: "1D1D1F"))
+
+            if let url = selectedSubtitleURL {
+                selectedFileRow(url: url)
+
+                subtitleModeSelector
+
+                startButton
+            } else {
+                uploadArea
+            }
+
+            Text(subtitleFooterText)
+                .font(.system(size: 12))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(16)
+    }
+
+    // MARK: - 上传区域
+    private var uploadArea: some View {
+        Button(action: { showSubtitlePicker = true }) {
+            VStack(spacing: 12) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 36))
+                    .foregroundColor(Color(hex: "FF9500"))
+
+                Text("选择字幕文件")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "6E6E73"))
+
+                Text("支持 SRT、ASS 格式")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+            .frame(maxWidth: .infinity, minHeight: 180)
+            .background(Color(hex: "F5F5F7"))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(hex: "E5E5EA"), lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 已选文件行
+    private func selectedFileRow(url: URL) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "doc.text.fill")
+                .font(.system(size: 18))
+                .foregroundColor(Color(hex: "FF9500"))
+
+            Text(url.lastPathComponent)
+                .font(.system(size: 15))
+                .foregroundColor(Color(hex: "1D1D1F"))
+                .lineLimit(1)
+
+            Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18))
+                .foregroundColor(Color(hex: "34C759"))
+
+            Button(action: { selectedSubtitleURL = nil }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(Color(hex: "8E8E93"))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(Color(hex: "F5F5F7"))
+        .cornerRadius(12)
+    }
+
+    // MARK: - 字幕模式选择器
+    private var subtitleModeSelector: some View {
+        HStack(spacing: 16) {
+            Text("字幕模式")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Color(hex: "3A3A3C"))
+
+            HStack(spacing: 0) {
+                modeButton(.chinese, label: "中文")
+                modeButton(.bilingual, label: "双语")
+            }
+            .padding(4)
+            .background(Color(hex: "F5F5F7"))
+            .cornerRadius(8)
+
+            Spacer()
+        }
+    }
+
+    private func modeButton(_ mode: SubtitleMode, label: String) -> some View {
+        Button(action: { selectedSubtitleMode = mode }) {
+            Text(label)
+                .font(.system(size: 13, weight: selectedSubtitleMode == mode ? .semibold : .regular))
+                .foregroundColor(selectedSubtitleMode == mode ? Color(hex: "007AFF") : Color(hex: "6E6E73"))
+                .frame(width: 80, height: 32)
+                .background(selectedSubtitleMode == mode ? Color.white : Color.clear)
+                .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 开始按钮
+    private var startButton: some View {
+        Button(action: { startTranslation() }) {
+            HStack(spacing: 8) {
+                Image(systemName: "character.bubble")
+                    .font(.system(size: 14))
+                Text("开始翻译")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(Color(hex: "007AFF"))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - 任务列表区域
+    private var tasksSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("翻译任务")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(hex: "1D1D1F"))
+
+                Spacer()
+
+                Menu {
+                    Button("清空已完成", role: .destructive) {
+                        translationManager.clearFinishedTasks()
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color(hex: "6E6E73"))
+                }
+            }
+
+            ForEach(translationManager.tasks) { task in
+                TranslationTaskCard(task: task)
+                    .onTapGesture {
+                        selectedTaskID = task.id
+                    }
+                    .contextMenu {
+                        if task.status == .completed, let resultPath = task.resultPath {
+                            ShareLink(item: URL(fileURLWithPath: resultPath)) {
+                                Label("导出字幕", systemImage: "square.and.arrow.up")
+                            }
+                        }
+
+                        Button {
+                            selectedTaskID = task.id
+                        } label: {
+                            Label("查看详情", systemImage: "info.circle")
+                        }
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            translationManager.deleteTask(task.id)
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    }
+            }
+        }
+    }
+
+    // MARK: - 空状态
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "character.bubble")
+                .font(.system(size: 50))
+                .foregroundColor(Color(hex: "C7C7CC"))
+
+            Text("暂无翻译任务")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color(hex: "8E8E93"))
+
+            Text("选择字幕文件开始翻译")
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "C7C7CC"))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
     }
 
     private var subtitleFooterText: String {
@@ -202,78 +280,111 @@ struct TranslationView: View {
     }
 }
 
-// MARK: - Translation Task Row
-
-struct TranslationTaskRowView: View {
+// MARK: - 翻译任务卡片
+private struct TranslationTaskCard: View {
     let task: TranslationTask
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(task.sourcePath.split(separator: "/").last.map(String.init) ?? "字幕文件")
-                    .font(.headline)
-                    .lineLimit(1)
+        HStack(spacing: 16) {
+            statusIcon
+                .frame(width: 44, height: 44)
+                .background(statusIconBackground)
+                .cornerRadius(12)
 
-                if task.subtitleMode == .bilingual {
-                    Text("双语")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.orange.opacity(0.2))
-                        .foregroundColor(.orange)
-                        .cornerRadius(4)
-                } else {
-                    Text("中文")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.2))
-                        .foregroundColor(.blue)
-                        .cornerRadius(4)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(task.sourcePath.split(separator: "/").last.map(String.init) ?? "字幕文件")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
+                        .lineLimit(1)
+
+                    modeBadge
+
+                    Spacer()
                 }
 
-                Spacer()
+                if task.status == .inProgress {
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(hex: "E5E5EA"))
+                            .frame(height: 4)
 
-                Text(task.createdAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(hex: "007AFF"))
+                            .frame(width: max(4, 200 * CGFloat(task.progress)), height: 4)
+                    }
+                    .frame(maxWidth: 200)
+                }
+
+                Text(task.statusMessage)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "8E8E93"))
             }
 
-            if task.status == .inProgress {
-                ProgressView(value: task.progress)
-                    .progressViewStyle(.linear)
-            }
+            Spacer()
 
-            Text(task.statusMessage)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Text(task.createdAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.system(size: 12))
+                .foregroundColor(Color(hex: "C7C7CC"))
         }
-        .padding(.vertical, 4)
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
     }
 
     @ViewBuilder
-    private var statusBadge: some View {
+    private var statusIcon: some View {
         switch task.status {
-        case .queued:
-            Label("排队中", systemImage: "clock")
-                .font(.caption)
-                .foregroundColor(.orange)
         case .inProgress:
-            Label("翻译中", systemImage: "character.bubble")
-                .font(.caption)
-                .foregroundColor(.blue)
+            Image(systemName: "character.bubble")
+                .font(.system(size: 18))
+                .foregroundColor(Color(hex: "007AFF"))
         case .completed:
-            Label("已完成", systemImage: "checkmark.circle.fill")
-                .font(.caption)
-                .foregroundColor(.green)
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18))
+                .foregroundColor(Color(hex: "34C759"))
         case .failed:
-            Label("失败", systemImage: "xmark.circle.fill")
-                .font(.caption)
-                .foregroundColor(.red)
-        case .cancelled:
-            Label("已取消", systemImage: "minus.circle")
-                .font(.caption)
-                .foregroundColor(.gray)
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18))
+                .foregroundColor(Color(hex: "FF3B30"))
+        case .queued, .cancelled:
+            Image(systemName: "clock")
+                .font(.system(size: 18))
+                .foregroundColor(Color(hex: "8E8E93"))
+        }
+    }
+
+    private var statusIconBackground: Color {
+        switch task.status {
+        case .inProgress:
+            return Color(hex: "EEF2FF")
+        case .completed:
+            return Color(hex: "E8F5E9")
+        case .failed:
+            return Color(hex: "FEE2E2")
+        case .queued, .cancelled:
+            return Color(hex: "F5F5F7")
+        }
+    }
+
+    @ViewBuilder
+    private var modeBadge: some View {
+        if task.subtitleMode == .bilingual {
+            Text("双语")
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color(hex: "FFF3E0"))
+                .foregroundColor(Color(hex: "FF9500"))
+                .cornerRadius(4)
+        } else {
+            Text("中文")
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color(hex: "E3F2FD"))
+                .foregroundColor(Color(hex: "007AFF"))
+                .cornerRadius(4)
         }
     }
 }
@@ -341,9 +452,8 @@ struct TranslationTaskDetailView: View {
                 }
             }
             .navigationTitle("翻译任务")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("完成") {
                         dismiss()
                     }

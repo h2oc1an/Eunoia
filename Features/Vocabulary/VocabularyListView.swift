@@ -9,43 +9,131 @@ struct VocabularyListView: View {
     @State private var searchCancellable: AnyCancellable?
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(words) { entry in
-                    WordRowView(entry: entry)
-                        .onTapGesture {
-                            selectedWord = entry
-                        }
-                }
-                .onDelete(perform: deleteWords)
-            }
-            .listStyle(.plain)
-            .searchable(text: $searchText, prompt: "搜索单词")
-            .navigationTitle("生词本")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 标题栏
+                HStack {
+                    Text("生词本")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
+
+                    Spacer()
+
                     Button(action: { showingAddWord = true }) {
-                        Image(systemName: "plus")
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("添加单词")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color(hex: "007AFF"))
+                        .cornerRadius(10)
                     }
+                    .buttonStyle(.plain)
+                }
+
+                // 搜索框
+                searchBar
+
+                // 单词列表
+                if words.isEmpty {
+                    emptyState
+                } else {
+                    wordList
                 }
             }
-            .sheet(isPresented: $showingAddWord) {
-                AddWordView(onSave: { loadWords() })
+            .padding(32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color(hex: "F5F5F7"))
+        .sheet(isPresented: $showingAddWord) {
+            AddWordView(onSave: { loadWords() })
+        }
+        .sheet(item: $selectedWord) { entry in
+            WordDetailView(entry: entry, onUpdate: { loadWords() })
+        }
+        .onAppear {
+            loadWords()
+        }
+        .onChange(of: searchText) { newValue in
+            performSearchDebounced(query: newValue)
+        }
+    }
+
+    // MARK: - 搜索栏
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16))
+                .foregroundColor(Color(hex: "8E8E93"))
+
+            TextField("搜索单词", text: $searchText)
+                .font(.system(size: 15))
+                .textFieldStyle(.plain)
+
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(hex: "C7C7CC"))
+                }
+                .buttonStyle(.plain)
             }
-            .sheet(item: $selectedWord) { entry in
-                WordDetailView(entry: entry, onUpdate: { loadWords() })
-            }
-            .onAppear {
-                loadWords()
-            }
-            .refreshable {
-                loadWords()
-            }
-            .onChange(of: searchText) { newValue in
-                performSearchDebounced(query: newValue)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.white)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(hex: "E5E5EA"), lineWidth: 1)
+        )
+    }
+
+    // MARK: - 单词列表
+    private var wordList: some View {
+        VStack(spacing: 12) {
+            ForEach(words) { entry in
+                WordCardView(entry: entry)
+                    .onTapGesture {
+                        selectedWord = entry
+                    }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            deleteWord(entry)
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    }
             }
         }
     }
+
+    // MARK: - 空状态
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "book")
+                .font(.system(size: 50))
+                .foregroundColor(Color(hex: "C7C7CC"))
+
+            Text(searchText.isEmpty ? "还没有单词" : "未找到匹配单词")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color(hex: "8E8E93"))
+
+            if searchText.isEmpty {
+                Text("点击右上角添加单词开始学习")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "C7C7CC"))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 80)
+    }
+
+    // MARK: - Actions
 
     private func loadWords() {
         do {
@@ -74,61 +162,64 @@ struct VocabularyListView: View {
             }
     }
 
-    private func deleteWords(at offsets: IndexSet) {
-        for index in offsets {
-            let word = words[index]
-            do {
-                try VocabularyService.shared.deleteWord(byId: word.id)
-                loadWords()
-            } catch {
-                print("Failed to delete word: \(error)")
-            }
+    private func deleteWord(_ entry: VocabularyEntry) {
+        do {
+            try VocabularyService.shared.deleteWord(byId: entry.id)
+            loadWords()
+        } catch {
+            print("Failed to delete word: \(error)")
         }
     }
 }
 
-struct WordRowView: View {
+// MARK: - 单词卡片
+private struct WordCardView: View {
     let entry: VocabularyEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(entry.word)
-                    .font(.headline)
+        HStack(spacing: 16) {
+            // 左侧：单词 + 标签
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(entry.word)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(hex: "1D1D1F"))
 
-                Spacer()
+                    if entry.nextReviewDate <= Date() {
+                        Text("待复习")
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color(hex: "FFF3E0"))
+                            .foregroundColor(Color(hex: "FF9500"))
+                            .cornerRadius(4)
+                    }
+                }
 
-                if entry.nextReviewDate <= Date() {
-                    Text("待复习")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.orange)
-                        .cornerRadius(4)
+                if let meaning = entry.meaning, !meaning.isEmpty {
+                    Text(meaning)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color(hex: "6E6E73"))
+                        .lineLimit(1)
                 }
             }
 
-            if let meaning = entry.meaning, !meaning.isEmpty {
-                Text(meaning)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
+            Spacer()
 
-            HStack {
+            // 右侧：复习信息
+            VStack(alignment: .trailing, spacing: 4) {
                 Text("复习 \(entry.repetitions) 次")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Spacer()
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "8E8E93"))
 
                 Text(formatDate(entry.nextReviewDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "C7C7CC"))
             }
         }
-        .padding(.vertical, 4)
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(16)
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -136,4 +227,8 @@ struct WordRowView: View {
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: Date())
     }
+}
+
+#Preview {
+    VocabularyListView()
 }

@@ -77,10 +77,7 @@ class DatabaseManager {
 
     private init() {
         do {
-            let path = try FileManager.default
-                .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                .appendingPathComponent("SpeakingEnglish.sqlite3")
-                .path
+            let path = Platform.databaseURL.path
             db = try Connection(path)
             createTables()
         } catch {

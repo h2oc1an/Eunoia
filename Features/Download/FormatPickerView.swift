@@ -29,7 +29,9 @@ struct FormatPickerView: View {
                 }
             }
             .navigationTitle("画质选择")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }

@@ -14,7 +14,7 @@ struct SubtitleListView: View {
             }
             .padding(.vertical, 8)
         }
-        .background(Color(.systemGray6))
+        .background(Color.platformSecondaryBackground)
         .cornerRadius(8)
     }
 }
@@ -46,7 +46,7 @@ struct SubtitleRowView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground))
+        .background(Color.platformBackground)
         .cornerRadius(6)
     }
 

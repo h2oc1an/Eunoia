@@ -1,6 +1,5 @@
 import Foundation
 import AVFoundation
-import UIKit
 
 class UploadService {
     static let shared = UploadService()
@@ -8,16 +7,12 @@ class UploadService {
     private let fileManager = FileManager.default
     private let thumbnailService = ThumbnailService.shared
 
-    private var documentsDirectory: URL {
-        fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    }
-
     private var videosDirectory: URL {
-        documentsDirectory.appendingPathComponent("Videos", isDirectory: true)
+        Platform.videosURL
     }
 
     private var subtitlesDirectory: URL {
-        documentsDirectory.appendingPathComponent("Subtitles", isDirectory: true)
+        Platform.subtitlesURL
     }
 
     private init() {
@@ -29,7 +24,7 @@ class UploadService {
         try? fileManager.createDirectory(at: subtitlesDirectory, withIntermediateDirectories: true)
     }
 
-    /// 复制视频文件到 Documents/Videos
+    /// 复制视频文件到 Videos 目录
     func copyVideoToDocuments(from sourceURL: URL) throws -> String {
         let fileName = sourceURL.lastPathComponent
         let destinationURL = videosDirectory.appendingPathComponent(fileName)
@@ -42,7 +37,7 @@ class UploadService {
         return destinationURL.path
     }
 
-    /// 复制字幕文件到 Documents/Subtitles
+    /// 复制字幕文件到 Subtitles 目录
     func copySubtitleToDocuments(from sourceURL: URL) throws -> String {
         let fileName = sourceURL.lastPathComponent
         let destinationURL = subtitlesDirectory.appendingPathComponent(fileName)
@@ -59,7 +54,7 @@ class UploadService {
     func generateThumbnail(for videoPath: String) -> String? {
         return thumbnailService.generateThumbnailSync(
             for: videoPath,
-            saveToDirectory: documentsDirectory
+            saveToDirectory: Platform.thumbnailsURL
         )
     }
 

@@ -34,7 +34,9 @@ struct BookmarkListSheet: View {
                 }
             }
             .navigationTitle("书签列表")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") {
@@ -98,7 +100,9 @@ struct AddBookmarkSheet: View {
                 }
             }
             .navigationTitle("添加书签")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
@@ -113,6 +117,8 @@ struct AddBookmarkSheet: View {
                 }
             }
         }
+        #if os(iOS)
         .presentationDetents([.height(300)])
+        #endif
     }
 }

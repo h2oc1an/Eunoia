@@ -43,7 +43,7 @@ struct SubtitleShareView: View {
                         }
                         .frame(maxHeight: 200)
                         .padding()
-                        .background(Color(.systemGray6))
+                        .background(Color.platformSecondaryBackground)
                         .cornerRadius(12)
                     }
                     .padding(.horizontal)
@@ -51,8 +51,41 @@ struct SubtitleShareView: View {
 
                 Spacer()
 
-                // 下载按钮
-                Button(action: shareSubtitle) {
+                // 分享按钮
+                #if os(macOS)
+                if let tempURL = tempSubtitleURL {
+                    ShareLink(item: tempURL) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("分享/保存字幕")
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                } else {
+                    Button(action: prepareSubtitle) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("分享/保存字幕")
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                }
+                #else
+                Button(action: prepareSubtitle) {
                     HStack {
                         Image(systemName: "square.and.arrow.up")
                         Text("分享/保存字幕")
@@ -66,9 +99,17 @@ struct SubtitleShareView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom)
+                .sheet(isPresented: $showShareSheet) {
+                    if let url = tempSubtitleURL {
+                        ActivityView(activityItems: [url])
+                    }
+                }
+                #endif
             }
             .padding(.top, 40)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") {
@@ -79,6 +120,7 @@ struct SubtitleShareView: View {
         }
         .onAppear {
             loadSubtitleContent()
+            prepareSubtitle()
         }
     }
 
@@ -91,7 +133,7 @@ struct SubtitleShareView: View {
         }
     }
 
-    private func shareSubtitle() {
+    private func prepareSubtitle() {
         let url = URL(fileURLWithPath: subtitlePath)
 
         // 如果是 SRT 文件，复制到临时目录以便分享
@@ -101,6 +143,9 @@ struct SubtitleShareView: View {
                 .appendingPathExtension("srt")
 
             do {
+                if FileManager.default.fileExists(atPath: tempURL.path) {
+                    try FileManager.default.removeItem(at: tempURL)
+                }
                 try FileManager.default.copyItem(at: url, to: tempURL)
                 tempSubtitleURL = tempURL
             } catch {
@@ -111,10 +156,13 @@ struct SubtitleShareView: View {
             tempSubtitleURL = url
         }
 
+        #if os(iOS)
         showShareSheet = true
+        #endif
     }
 }
 
+#if os(iOS)
 // MARK: - Activity View (Share Sheet)
 struct ActivityView: UIViewControllerRepresentable {
     let activityItems: [Any]
@@ -130,3 +178,4 @@ struct ActivityView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+#endif

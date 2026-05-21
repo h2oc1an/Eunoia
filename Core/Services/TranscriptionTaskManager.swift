@@ -1,8 +1,10 @@
 import Foundation
 import Combine
 import UserNotifications
-import UIKit
 import AVFoundation
+#if os(iOS)
+import UIKit
+#endif
 
 /// 转录任务状态
 enum TranscriptionTaskStatus: String, Codable {
@@ -90,7 +92,9 @@ class TranscriptionTaskManager: ObservableObject {
     @Published var tasks: [TranscriptionTask] = []
 
     private var runningTask: Task<Void, Never>?
+    #if os(iOS)
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    #endif
     private var notificationCenter = UNUserNotificationCenter.current()
 
     /// 每个任务的完成回调
@@ -253,10 +257,9 @@ class TranscriptionTaskManager: ObservableObject {
                     srtContent = transcriptionService.generateSRT(from: entries)
                 }
 
-                let tempDir = FileManager.default.temporaryDirectory
                 let videoTitle = self.tasks.first { $0.id == taskID }?.videoTitle ?? "transcript"
                 let subtitleFileName = videoTitle.replacingOccurrences(of: " ", with: "_") + ".srt"
-                let subtitleURL = tempDir.appendingPathComponent(subtitleFileName)
+                let subtitleURL = Platform.subtitlesURL.appendingPathComponent(subtitleFileName)
 
                 try srtContent.write(to: subtitleURL, atomically: true, encoding: .utf8)
 
@@ -398,23 +401,26 @@ class TranscriptionTaskManager: ObservableObject {
     // MARK: - Background Task
 
     private func startBackgroundTask() {
+        #if os(iOS)
         backgroundTaskID = UIApplication.shared.beginBackgroundTask { [weak self] in
             self?.endBackgroundTask()
         }
+        #endif
     }
 
     private func endBackgroundTask() {
+        #if os(iOS)
         if backgroundTaskID != .invalid {
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
         }
+        #endif
     }
 
     // MARK: - Persistence
 
     private var tasksFileURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("transcription_tasks.json")
+        Platform.baseURL.appendingPathComponent("transcription_tasks.json")
     }
 
     func saveTasks() {
