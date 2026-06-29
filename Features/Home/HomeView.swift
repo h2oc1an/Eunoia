@@ -75,7 +75,7 @@ struct HomeView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("讲英格力士")
+            .navigationTitle("Eunoia")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
