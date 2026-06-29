@@ -320,7 +320,7 @@ struct AboutView: View {
                         .font(.system(size: 60))
                         .foregroundColor(.blue)
 
-                    Text("SpeakingEnglish")
+                    Text("Eunoia")
                         .font(.title)
                         .fontWeight(.bold)
 

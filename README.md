@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="Resources/logo.png" alt="讲英格力士" width="200"/>
+  <img src="Resources/logo.png" alt="Eunoia" width="200"/>
 </p>
 
-<h1 align="center">讲英格力士 (SpeakingEnglish)</h1>
+<h1 align="center">Eunoia</h1>
 
-一款帮助用户通过视频学习英语的应用，支持 **iOS** 和 **macOS 原生** 两个版本。
+一款帮助用户通过视频学习多语言的应用，支持 **iOS** 和 **macOS 原生** 两个版本。
 
 | 版本 | 分支 | 说明 |
 |-----|------|------|
@@ -75,9 +75,9 @@
 ## 项目结构
 
 ```
-SpeakingEnglish/
+Eunoia/
 ├── App/                    # 应用入口
-│   ├── SpeakingEnglishApp.swift
+│   ├── EunoiaApp.swift
 │   ├── ContentView.swift
 │   └── macOS/              # macOS 专属（仅 macos 分支）
 │       └── MenuBarCommands.swift
@@ -130,8 +130,8 @@ SpeakingEnglish/
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/h2oc1an/SpeakingEnglish.git
-cd SpeakingEnglish
+git clone https://github.com/h2oc1an/Eunoia.git
+cd Eunoia
 ```
 
 ### 2. 安装 XcodeGen
@@ -152,10 +152,10 @@ git checkout main
 xcodegen generate
 
 # 构建运行
-xcodebuild -project SpeakingEnglish.xcodeproj -scheme SpeakingEnglish -configuration Debug build
+xcodebuild -project Eunoia.xcodeproj -scheme Eunoia -configuration Debug build
 
 # 或在 Xcode 中打开
-open SpeakingEnglish.xcodeproj
+open Eunoia.xcodeproj
 ```
 
 > **环境要求**：Xcode 15.0+，iOS 16.0+
@@ -172,14 +172,14 @@ git checkout macos
 xcodegen generate
 
 # 构建运行（关闭代码签名）
-xcodebuild -project SpeakingEnglish.xcodeproj -scheme SpeakingEnglish-macOS -configuration Debug build CODE_SIGNING_ALLOWED=NO
+xcodebuild -project Eunoia.xcodeproj -scheme Eunoia-macOS -configuration Debug build CODE_SIGNING_ALLOWED=NO
 
-# 或在 Xcode 中打开，选择 SpeakingEnglish-macOS scheme
-open SpeakingEnglish.xcodeproj
+# 或在 Xcode 中打开，选择 Eunoia-macOS scheme
+open Eunoia.xcodeproj
 ```
 
 > **环境要求**：Xcode 15.0+，macOS 13.0+  
-> **注意**：运行时请选择 `SpeakingEnglish-macOS` scheme，不要选择 `My Mac (Designed for iPad)`。
+> **注意**：运行时请选择 `Eunoia-macOS` scheme，不要选择 `My Mac (Designed for iPad)`。
 
 ---
 
