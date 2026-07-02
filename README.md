@@ -1,10 +1,12 @@
 <p align="center">
-  <img src="Resources/logo.png" alt="讲英格力士" width="200"/>
+  <img src="Resources/logo.png" alt="Eunoia" width="200"/>
 </p>
 
-<h1 align="center">讲英格力士</h1>
+<h1 align="center">Eunoia</h1>
 
-一款帮助用户通过视频学习英语的 **macOS 原生应用**，支持本地视频播放、视频语音转录（多语言识别->字幕文件）、字幕翻译（多语言->中文）、字幕生词本等功能。
+一款帮助用户通过视频学习多语言的 **macOS 原生应用**，支持本地视频播放、视频语音转录（多语言识别->字幕文件）、字幕翻译（多语言->中文）、字幕生词本等功能。
+
+> **Eunoia** 源自希腊语 εὔνοια，意为「美好的心意」。在古典修辞学中，它指演讲者与听众之间的善意联结——这也是语言学习的本质：用真诚的表达，跨越文化，建立理解。
 
 ## 功能特性
 
@@ -59,9 +61,9 @@
 ## 项目结构
 
 ```
-SpeakingEnglish/
+Eunoia/
 ├── App/                    # 应用入口
-│   ├── SpeakingEnglishApp.swift
+│   ├── EunoiaApp.swift
 │   ├── ContentView.swift          # NavigationSplitView + 自定义 Sidebar
 │   └── macOS/
 │       └── MenuBarCommands.swift   # macOS 菜单栏
@@ -145,8 +147,8 @@ SpeakingEnglish/
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/h2oc1an/SpeakingEnglish.git
-cd SpeakingEnglish
+git clone https://github.com/h2oc1an/Eunoia.git
+cd Eunoia
 ```
 
 ### 2. 生成 Xcode 项目
@@ -161,7 +163,7 @@ xcodegen generate
 
 ### 3. 配置签名（可选）
 
-在 Xcode 中打开生成的 `SpeakingEnglish.xcodeproj`，选择 Signing & Capabilities 配置团队账号。
+在 Xcode 中打开生成的 `Eunoia.xcodeproj`，选择 Signing & Capabilities 配置团队账号。
 
 > **注意**：需要开发者账号。
 
@@ -173,13 +175,13 @@ xcodegen generate
 
 ```bash
 # 使用 xcodebuild 构建 macOS 版本
-xcodebuild -project SpeakingEnglish.xcodeproj -scheme SpeakingEnglish-macOS -configuration Debug build CODE_SIGNING_ALLOWED=NO
+xcodebuild -project Eunoia.xcodeproj -scheme Eunoia-macOS -configuration Debug build CODE_SIGNING_ALLOWED=NO
 
 # 或在 Xcode 中打开项目并运行
-open SpeakingEnglish.xcodeproj
+open Eunoia.xcodeproj
 ```
 
-> **注意**：运行时请选择 `SpeakingEnglish-macOS` scheme，不要选择 `My Mac (Designed for iPad)`。
+> **注意**：运行时请选择 `Eunoia-macOS` scheme，不要选择 `My Mac (Designed for iPad)`。
 
 ## 使用说明
 

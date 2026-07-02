@@ -211,7 +211,7 @@ actor DownloadService {
     ) {
         // 使用后台配置以支持后台下载
         let config = URLSessionConfiguration.background(
-            withIdentifier: "com.speakingenglish.download.\(taskId.uuidString)"
+            withIdentifier: "com.eunoia.download.\(taskId.uuidString)"
         )
         config.sessionSendsLaunchEvents = true
         config.isDiscretionary = false
@@ -279,7 +279,7 @@ actor DownloadService {
             .appendingPathComponent("\(taskId.uuidString).resume")
 
         let config = URLSessionConfiguration.background(
-            withIdentifier: "com.speakingenglish.download.\(taskId.uuidString)"
+            withIdentifier: "com.eunoia.download.\(taskId.uuidString)"
         )
         config.sessionSendsLaunchEvents = true
         config.isDiscretionary = false

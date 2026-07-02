@@ -5,7 +5,7 @@ import Photos
 import UserNotifications
 
 @main
-struct SpeakingEnglishApp: App {
+struct EunoiaApp: App {
     @StateObject private var appState = AppState()
 
     var body: some Scene {

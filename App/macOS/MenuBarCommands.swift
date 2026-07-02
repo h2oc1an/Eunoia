@@ -53,7 +53,7 @@ struct MenuBarCommands: Commands {
         // Help Menu
         CommandGroup(after: .help) {
             Divider()
-            Button("讲英格力士 帮助") {
+            Button("Eunoia 帮助") {
                 // 可以打开帮助窗口
             }
         }

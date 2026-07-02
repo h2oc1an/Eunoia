@@ -15,7 +15,7 @@ enum Platform {
         #if os(macOS)
         let url = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("SpeakingEnglish")
+            .appendingPathComponent("Eunoia")
         #else
         let url = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -30,7 +30,7 @@ enum Platform {
     static var databaseURL: URL {
         let url = baseURL.appendingPathComponent("Database", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url.appendingPathComponent("speaking_english.sqlite3")
+        return url.appendingPathComponent("Eunoia.sqlite3")
     }
 
     /// 下载目录
@@ -69,7 +69,7 @@ enum Platform {
     /// 缓存目录
     static var cacheURL: URL {
         let url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("SpeakingEnglish", isDirectory: true)
+            .appendingPathComponent("Eunoia", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }

@@ -481,7 +481,7 @@ struct AboutView: View {
                         .font(.system(size: 60))
                         .foregroundColor(Color(hex: "007AFF"))
 
-                    Text("讲英格力士")
+                    Text("Eunoia")
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(Color(hex: "1D1D1F"))

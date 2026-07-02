@@ -21,7 +21,7 @@ private struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("讲英格力士")
+            Text("Eunoia")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(.primary)
                 .padding(.horizontal, 20)
